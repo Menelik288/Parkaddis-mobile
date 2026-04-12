@@ -1,22 +1,128 @@
 import { Colors } from '@/constants/theme';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Camera, Map, UserLocation } from '@maplibre/maplibre-react-native';
+import { Camera, Map, UserLocation, Marker, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
+
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ActivityIndicator } from 'react-native';
+
+const PARKING_SPOTS = [
+  {
+    id: '1',
+    title: 'Bole Medhanealem Mall',
+    subtitle: 'Cameroon St, Bole',
+    coordinate: [38.7891, 8.9984] as [number, number],
+    slots: 12,
+    price: '$2.50',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBR0b_HtyojffIY6GBWEOP72fKjKXiz14ai3V6859g3Oth58o0A84PaLuSC6yAppnl9El79LljNxIBlmHZQL_AmwYmlOe3It5bMZ6R4ID3HHY3tTQl07DDxXsmSHnZde1Rq22_dpQDSpxN1fgEcfYwnZHFs_q6WlRdJmqdj8ysEAADE8EduW6jvPRPTJ-C85iOXI6UbkTlv9UF0qe-CqstuyOivJjI8J4CJJNI6LKYwybnhw7GlBlkXIIN5kE1JrLF2FxA2ZlCfSlA'
+  },
+  {
+    id: '2',
+    title: 'Edna Mall Underground',
+    subtitle: 'Bole Road, Central',
+    coordinate: [38.7876, 8.9972] as [number, number],
+    slots: 4,
+    price: '$3.00',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAHWn4PSOhz2pvDWc_JghtnLbF9YTjSIdP-k-3a9SjssR8YSLBYgQ_-Y2ydN8N3pdEOsmBrpRnABa_Qv0oWpIzb70OBG52d4JO7zoXlYji6oBF8pHMGkRxSKND3F3nIIo4eyKbnHLS92OqgGuGqufG18JeF7yfduVziDJvGrP2tqmanqx9XaOCUcDVFl3UXnxaHlVQOM9u9jQ1TnCc1lEqiBMv1XHBSQHuEJa79jyaMp6JLyI5Mjnz4fXX0oK9Kk58lVCNk5pqVLLs'
+  },
+  {
+    id: '3',
+    title: 'Friendship City Center',
+    subtitle: 'Africa Ave, Bole',
+    coordinate: [38.7850, 8.9990] as [number, number],
+    slots: 8,
+    price: '$2.00',
+    image: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=400'
+  }
+];
 
 export default function FindScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const isDark = colorScheme === 'dark';
   const primary = '#064e3b';
-  const secondary = '#059669'; // from original map design
+  const secondary = '#059669';
   const router = useRouter();
+
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const [routeData, setRouteData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
+    async function startTracking() {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Permission to access location was denied');
+        setLoading(false);
+        return;
+      }
+
+      // Initial position
+      try {
+        let initial = await Location.getCurrentPositionAsync({});
+        setUserLocation([initial.coords.longitude, initial.coords.latitude]);
+      } catch (e) {
+        console.warn('Could not get initial location', e);
+      }
+      setLoading(false);
+
+      // Live subscription
+      subscription = await Location.watchPositionAsync(
+        { 
+          accuracy: Location.Accuracy.Balanced, 
+          distanceInterval: 5, // Update every 5 meters
+          timeInterval: 5000   // Or every 5 seconds
+        },
+        (newLoc) => {
+          setUserLocation([newLoc.coords.longitude, newLoc.coords.latitude]);
+        }
+      );
+    }
+
+    startTracking();
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, []);
+
+  const fetchRoute = async (destination: [number, number]) => {
+    if (!userLocation) return;
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${userLocation[0]},${userLocation[1]};${destination[0]},${destination[1]}?overview=full&geometries=geojson`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.routes && data.routes.length > 0) {
+        setRouteData(data.routes[0].geometry);
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+    }
+  };
+
+  const handleSpotPress = (spot: typeof PARKING_SPOTS[0]) => {
+    setSelectedSpotId(spot.id);
+    fetchRoute(spot.coordinate as [number, number]);
+  };
+
+  if (loading && !userLocation) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+        <ActivityIndicator size="large" color={primary} />
+        <Text style={{ marginTop: 12, color: theme.text }}>Locating you...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Main Content (Map & Overlay) */}
       <View style={styles.mapContainer}>
-        {/* MapLibreGL Map component */}
         <Map
           style={StyleSheet.absoluteFillObject}
           logo={false}
@@ -25,11 +131,47 @@ export default function FindScreen() {
         >
           <Camera
             zoom={14}
-            center={[38.763611, 9.005401]} // Addis Ababa, Ethiopia
+            center={userLocation || [38.763611, 9.005401]}
           />
+          
           <UserLocation />
-        </Map>
 
+          {/* Parking Spot Markers */}
+          {PARKING_SPOTS.map((spot) => (
+            <Marker
+              key={spot.id}
+              id={spot.id}
+              lngLat={spot.coordinate}
+            >
+              <TouchableOpacity onPress={() => handleSpotPress(spot)}>
+                <View style={[
+                  styles.pPin, 
+                  selectedSpotId === spot.id && styles.pPinActive,
+                  { backgroundColor: selectedSpotId === spot.id ? secondary : primary }
+                ]}>
+                  <Text style={styles.pPinText}>P</Text>
+                </View>
+              </TouchableOpacity>
+            </Marker>
+          ))}
+
+          {/* Route Line */}
+          {routeData && (
+            <GeoJSONSource id="routeSource" data={{ type: 'Feature', geometry: routeData, properties: {} }}>
+              <Layer
+                id="routeLayer"
+                type="line"
+                style={{
+                  lineColor: secondary,
+                  lineWidth: 5,
+                  lineJoin: 'round',
+                  lineCap: 'round',
+                  lineOpacity: 0.8,
+                }}
+              />
+            </GeoJSONSource>
+          )}
+        </Map>
         {/* Top Navigation Overlay */}
         <View style={styles.topOverlay}>
           <View style={styles.leftActions}>
@@ -51,109 +193,76 @@ export default function FindScreen() {
           </View>
         </View>
 
-        {/* High-Contrast P Pins */}
-        <View style={[styles.pPin, { top: '25%', right: '15%' }]}>
-          <Text style={styles.pPinText}>P</Text>
-        </View>
-        <View style={[styles.pPin, styles.pPinActive, { bottom: '40%', left: '20%' }]}>
-          <Text style={styles.pPinTextActive}>P</Text>
-        </View>
-        <View style={[styles.pPin, { top: '45%', right: '40%' }]}>
-          <Text style={styles.pPinText}>P</Text>
-        </View>
-
-        {/* User Location Crosshair */}
-        <View style={styles.userLocation}>
-          <View style={styles.userPulse} />
-          <View style={styles.userDot} />
-        </View>
-
-        {/* Floating Action Button for Location Recenter - Crosshair Style */}
+        {/* Floating Action Buttons */}
         <View style={styles.distanceSelector}>
           <View style={[styles.distancePillbox, { backgroundColor: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)' }]}>
-            <TouchableOpacity style={[styles.distBtn, styles.distBtnActive]}>
-              <Text style={styles.distBtnTextActive}>All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.distBtn}>
-              <Text style={styles.distBtnText}>200m</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.distBtn}>
-              <Text style={styles.distBtnText}>400m</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.distBtn}>
-              <Text style={styles.distBtnText}>600m</Text>
-            </TouchableOpacity>
+            {['All', '200m', '400m', '600m'].map((dist) => (
+              <TouchableOpacity key={dist} style={[styles.distBtn, dist === 'All' && styles.distBtnActive]}>
+                <Text style={dist === 'All' ? styles.distBtnTextActive : styles.distBtnText}>{dist}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
           <View style={[styles.distanceLabelBox, { backgroundColor: isDark ? '#1e293b' : '#fff' }]}>
             <Text style={[styles.distanceLabel, { color: isDark ? '#34d399' : primary }]}>DISTANCE</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.trackBtn, { backgroundColor: isDark ? '#1e293b' : '#fff' }]}>
+        <TouchableOpacity 
+          style={[styles.trackBtn, { backgroundColor: isDark ? '#1e293b' : '#fff' }]}
+          onPress={async () => {
+            let location = await Location.getCurrentPositionAsync({});
+            setUserLocation([location.coords.longitude, location.coords.latitude]);
+          }}
+        >
           <MaterialIcons name="my-location" size={28} color={isDark ? '#34d399' : primary} />
         </TouchableOpacity>
 
-        {/* Horizontal Scrollable Parking Cards (KEPT FROM ORIGINAL) */}
+        {/* Horizontal Scrollable Parking Cards */}
         <View style={styles.cardsWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsScroll}>
-            {/* Card 1 */}
-            <View style={[styles.card, { backgroundColor: isDark ? '#0f172a' : '#fff' }]}>
-              <View style={styles.cardInfo}>
-                <ImageBackground
-                  source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBR0b_HtyojffIY6GBWEOP72fKjKXiz14ai3V6859g3Oth58o0A84PaLuSC6yAppnl9El79LljNxIBlmHZQL_AmwYmlOe3It5bMZ6R4ID3HHY3tTQl07DDxXsmSHnZde1Rq22_dpQDSpxN1fgEcfYwnZHFs_q6WlRdJmqdj8ysEAADE8EduW6jvPRPTJ-C85iOXI6UbkTlv9UF0qe-CqstuyOivJjI8J4CJJNI6LKYwybnhw7GlBlkXIIN5kE1JrLF2FxA2ZlCfSlA' }}
-                  style={styles.cardImg}
-                  imageStyle={{ borderRadius: 12 }}
-                />
-                <View style={styles.cardDetails}>
-                  <View>
-                    <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>Bole Medhanealem Mall</Text>
-                    <Text style={styles.cardSubtitle} numberOfLines={1}>Cameroon St, Bole</Text>
-                  </View>
-                  <View style={styles.cardSlots}>
-                    <MaterialIcons name="check-circle" size={14} color={secondary} />
-                    <Text style={[styles.slotsText, { color: secondary }]}>12 slots available</Text>
-                  </View>
-                  <Text style={[styles.priceText, { color: primary }]}>$2.50<Text style={styles.priceUnit}>/hr</Text></Text>
-                </View>
-              </View>
-              <View style={styles.cardFooter}>
-                <TouchableOpacity style={[styles.reserveBtn, { backgroundColor: primary }]} onPress={() => router.push('/reserve' as any)}>
-                  <Text style={styles.reserveBtnText}>Reserve Spot</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Card 2 */}
-            <View style={[styles.card, styles.cardSelected, { backgroundColor: isDark ? '#0f172a' : '#fff', borderColor: primary }]}>
-              <View style={styles.cardInfo}>
-                <ImageBackground
-                  source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAHWn4PSOhz2pvDWc_JghtnLbF9YTjSIdP-k-3a9SjssR8YSLBYgQ_-Y2ydN8N3pdEOsmBrpRnABa_Qv0oWpIzb70OBG52d4JO7zoXlYji6oBF8pHMGkRxSKND3F3nIIo4eyKbnHLS92OqgGuGqufG18JeF7yfduVziDJvGrP2tqmanqx9XaOCUcDVFl3UXnxaHlVQOM9u9jQ1TnCc1lEqiBMv1XHBSQHuEJa79jyaMp6JLyI5Mjnz4fXX0oK9Kk58lVCNk5pqVLLs' }}
-                  style={styles.cardImg}
-                  imageStyle={{ borderRadius: 12 }}
-                />
-                <View style={styles.cardDetails}>
-                  <View>
-                    <View style={styles.cardHeaderRow}>
-                      <Text style={[styles.cardTitle, { color: theme.text, flex: 1 }]} numberOfLines={1}>Edna Mall Underground</Text>
-                      <View style={[styles.selectedBadge, { backgroundColor: `${primary}1a` }]}>
-                        <Text style={[styles.selectedBadgeText, { color: primary }]}>SELECTED</Text>
+            {PARKING_SPOTS.map((spot) => (
+              <TouchableOpacity 
+                key={spot.id} 
+                activeOpacity={0.9}
+                onPress={() => handleSpotPress(spot)}
+                style={[
+                  styles.card, 
+                  selectedSpotId === spot.id && styles.cardSelected, 
+                  { backgroundColor: isDark ? '#0f172a' : '#fff', borderColor: selectedSpotId === spot.id ? primary : 'transparent' }
+                ]}
+              >
+                <View style={styles.cardInfo}>
+                  <ImageBackground
+                    source={{ uri: spot.image }}
+                    style={styles.cardImg}
+                    imageStyle={{ borderRadius: 12 }}
+                  />
+                  <View style={styles.cardDetails}>
+                    <View>
+                      <View style={styles.cardHeaderRow}>
+                        <Text style={[styles.cardTitle, { color: theme.text, flex: 1 }]} numberOfLines={1}>{spot.title}</Text>
+                        {selectedSpotId === spot.id && (
+                          <View style={[styles.selectedBadge, { backgroundColor: `${primary}1a` }]}>
+                            <Text style={[styles.selectedBadgeText, { color: primary }]}>SELECTED</Text>
+                          </View>
+                        )}
                       </View>
+                      <Text style={styles.cardSubtitle} numberOfLines={1}>{spot.subtitle}</Text>
                     </View>
-                    <Text style={styles.cardSubtitle} numberOfLines={1}>Bole Road, Central</Text>
+                    <View style={styles.cardSlots}>
+                      <MaterialIcons name="check-circle" size={14} color={secondary} />
+                      <Text style={[styles.slotsText, { color: secondary }]}>{spot.slots} slots available</Text>
+                    </View>
+                    <Text style={[styles.priceText, { color: primary }]}>{spot.price}<Text style={styles.priceUnit}>/hr</Text></Text>
                   </View>
-                  <View style={styles.cardSlots}>
-                    <MaterialIcons name="check-circle" size={14} color={secondary} />
-                    <Text style={[styles.slotsText, { color: secondary }]}>4 slots available</Text>
-                  </View>
-                  <Text style={[styles.priceText, { color: primary }]}>$3.00<Text style={styles.priceUnit}>/hr</Text></Text>
                 </View>
-              </View>
-              <View style={styles.cardFooter}>
-                <TouchableOpacity style={[styles.reserveBtn, { backgroundColor: primary }]} onPress={() => router.push('/reserve' as any)}>
-                  <Text style={styles.reserveBtnText}>Reserve Spot</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+                <View style={styles.cardFooter}>
+                  <TouchableOpacity style={[styles.reserveBtn, { backgroundColor: primary }]} onPress={() => router.push('/reserve' as any)}>
+                    <Text style={styles.reserveBtnText}>Reserve Spot</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
 
@@ -170,13 +279,6 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
     backgroundColor: '#cbd5e1',
-  },
-  mapImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  mapGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(248, 250, 252, 0.2)',
   },
   topOverlay: {
     position: 'absolute',
@@ -242,10 +344,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pPin: {
-    position: 'absolute',
     width: 38,
     height: 38,
-    backgroundColor: '#064e3b',
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
@@ -254,50 +354,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 5,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   pPinActive: {
-    transform: [{ scale: 1.15 }],
-    borderWidth: 3,
+    transform: [{ scale: 1.2 }],
     borderColor: '#fff',
+    borderWidth: 3,
   },
   pPinText: {
     color: '#fff',
     fontWeight: '800',
-    fontSize: 18,
-  },
-  pPinTextActive: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 18,
-  },
-  userLocation: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -10 }, { translateY: -10 }],
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 30,
-  },
-  userPulse: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    backgroundColor: 'rgba(6,78,59,0.1)',
-    borderRadius: 40,
-  },
-  userDot: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#064e3b',
-    borderRadius: 10,
-    borderWidth: 4,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    fontSize: 16,
   },
   distanceSelector: {
     position: 'absolute',

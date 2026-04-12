@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bi9ears.Parkaddis"
+      "bundleIdentifier": "com.bi9ears.Parkaddis",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking spots.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking spots."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -45,6 +49,13 @@
         "@maplibre/maplibre-react-native",
         {
           "locationWhenInUsePermission": "Show current location on map"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ParkAddis needs your location to find nearby parking spots.",
+          "isAndroidBackgroundLocationEnabled": false
         }
       ]
     ],
