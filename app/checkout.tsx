@@ -4,6 +4,7 @@ import { paymentService } from '@/services/paymentService';
 import {
   getReservationDisplayPriceEt,
   getReservationLocationLabel,
+  getReservationQrToken,
   Reservation,
   reservationService,
 } from '@/services/reservationService';
@@ -92,13 +93,14 @@ export default function CheckoutScreen() {
   };
 
   const handleChapaPay = async () => {
-    if (!reservation?.qrToken) {
-      Alert.alert('Missing ticket', 'This reservation has no QR token yet. Try again in a moment.');
-      return;
-    }
+    if (!reservation) return;
+    const qr = getReservationQrToken(reservation);
     setPayLoading(true);
     try {
-      const response = await paymentService.createDirectPayment(reservation.qrToken);
+      const response = await paymentService.createDirectPayment({
+        reservationId: reservation.id,
+        qrToken: qr,
+      });
       if (response.checkout_url) {
         await WebBrowser.openBrowserAsync(response.checkout_url);
         Alert.alert(

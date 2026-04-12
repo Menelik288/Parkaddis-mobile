@@ -26,7 +26,7 @@ type BalancePillShimmerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-function AmountLineShimmer({ isDark }: { isDark: boolean }) {
+export function AmountLineShimmer({ isDark, style }: { isDark: boolean; style?: StyleProp<ViewStyle> }) {
   const translateX = useRef(new Animated.Value(-BAND)).current;
 
   useEffect(() => {
@@ -54,14 +54,17 @@ function AmountLineShimmer({ isDark }: { isDark: boolean }) {
 
   return (
     <View
-      style={{
-        marginTop: 4,
-        height: 20,
-        alignSelf: 'stretch',
-        borderRadius: 8,
-        overflow: 'hidden',
-        backgroundColor: track,
-      }}
+      style={[
+        {
+          marginTop: 4,
+          height: 20,
+          alignSelf: 'stretch',
+          borderRadius: 8,
+          overflow: 'hidden',
+          backgroundColor: track,
+        },
+        style
+      ]}
     >
       <Animated.View
         style={{

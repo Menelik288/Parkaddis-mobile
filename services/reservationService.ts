@@ -272,6 +272,11 @@ export const reservationService = {
     return response.data;
   },
 
+  cancelReservation: async (reservationId: string) => {
+    const response = await apiClient.post('/reservation/cancel', { reservationId });
+    return response.data;
+  },
+
   extendReservation: async (reservationId: string, extraMinutes: number): Promise<Reservation> => {
     const response = await apiClient.post<Record<string, unknown>>('/reservation/extend', {
       reservationId,

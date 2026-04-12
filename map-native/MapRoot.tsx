@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { useMap } from './MapProvider';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import MapLibreGL from "@maplibre/maplibre-react-native";
 
 interface MapRootProps {
@@ -11,7 +11,21 @@ interface MapRootProps {
 const DEFAULT_CENTER: [number, number] = [38.75242, 9.03584];
 
 const MapRoot = ({ children }: MapRootProps) => {
-  const { cameraRef, mapViewHasLoadedRef } = useMap();
+  const { cameraRef, mapViewHasLoadedRef, navigation, idleRegionRef } = useMap();
+
+  const onRegionDidChange = useCallback(
+    (feature: { properties?: { visibleBounds?: [number[], number[]] } }) => {
+      if (navigation.status !== 'IDLE') return;
+      const vb = feature.properties?.visibleBounds;
+      if (!vb || vb.length < 2) return;
+      const [ne, sw] = vb;
+      idleRegionRef.current = {
+        ne: [ne[0], ne[1]] as [number, number],
+        sw: [sw[0], sw[1]] as [number, number],
+      };
+    },
+    [navigation.status, idleRegionRef]
+  );
 
   useEffect(() => {
     mapViewHasLoadedRef.current = false;
@@ -28,6 +42,7 @@ const MapRoot = ({ children }: MapRootProps) => {
         mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         logoEnabled={false}
         attributionEnabled={false}
+        onRegionDidChange={onRegionDidChange}
         onDidFinishLoadingMap={() => {
           mapViewHasLoadedRef.current = true;
         }}

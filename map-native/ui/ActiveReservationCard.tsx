@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Navigation, Clock, MapPin } from 'lucide-react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { X, Navigation, Ticket } from 'lucide-react-native';
 
 export type ReservationCardMode = 'preview' | 'navigating';
 
@@ -13,249 +13,201 @@ interface ActiveReservationCardProps {
   mode?: ReservationCardMode;
   onDirectionsClick?: () => void;
   onDismissPreview?: () => void;
+  /** Navigating / arrived: closes navigation from the minimal bar */
+  onCloseNavigation?: () => void;
+}
+
+const CARD_GREEN = '#064e3b';
+
+function formatDistanceDisplay(m: number | null): { line: string; fontSize: number } {
+  if (m == null) return { line: '—', fontSize: 26 };
+  if (m < 1000) {
+    const rounded = Math.max(0, Math.round(m));
+    const digits = String(rounded).length;
+    return {
+      line: `${rounded} m`,
+      fontSize: digits <= 2 ? 22 : digits <= 3 ? 26 : 24,
+    };
+  }
+  const km = m / 1000;
+  const line = km >= 10 ? `${km.toFixed(1)} km` : `${km.toFixed(1)} km`;
+  return { line, fontSize: line.length > 6 ? 24 : 28 };
 }
 
 export function ActiveReservationCard({
   title,
-  address,
-  status,
+  address: _address,
+  status: statusLabel,
   distance,
-  duration,
+  duration: _duration,
   mode = 'preview',
   onDirectionsClick,
   onDismissPreview,
+  onCloseNavigation,
 }: ActiveReservationCardProps) {
-  const formatDistance = (m: number | null) => {
-    if (m === null) return '--';
-    return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
-  };
+  const isDark = useColorScheme() === 'dark';
+  const dist = useMemo(() => formatDistanceDisplay(distance), [distance]);
 
-  const formatDuration = (s: number | null) => {
-    if (s === null) return '--';
-    const mins = Math.round(s / 60);
-    return mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
-  };
+  const bg = isDark ? '#1e293b' : CARD_GREEN;
+  const borderColor = isDark ? '#334155' : 'transparent';
+  const borderWidth = isDark ? 1 : 0;
+  const textColor = isDark ? '#f8fafc' : '#ffffff';
+  const iconWrapBg = isDark ? '#0f172a' : 'rgba(255,255,255,0.14)';
+  const iconColor = isDark ? '#34d399' : '#ffffff';
+  const navBtnBg = isDark ? '#34d399' : '#ffffff';
+  const navBtnText = isDark ? '#0f172a' : CARD_GREEN;
+  const dismissBg = isDark ? '#0f172a' : 'rgba(255,255,255,0.12)';
+  const dismissIcon = isDark ? '#f8fafc' : '#ffffff';
 
   if (mode === 'navigating') {
     return (
-      <View style={styles.navCompact}>
-        <View style={styles.navCompactHeader}>
-          <View style={styles.iconContainerSmall}>
-            <Navigation size={18} color="#fff" />
-          </View>
-          <View style={styles.navCompactTitleWrap}>
-            <Text style={styles.navCompactLabel}>Remaining</Text>
-            <Text style={styles.navCompactDistance}>{formatDistance(distance)}</Text>
-          </View>
-        </View>
-        <Text style={styles.navCompactName} numberOfLines={1}>
-          {title}
+      <View style={[styles.navBar, { backgroundColor: bg, borderColor, borderWidth }]}>
+        <Text style={[styles.navDistance, { fontSize: dist.fontSize, color: textColor }]} numberOfLines={1}>
+          {dist.line}
         </Text>
-        <View style={styles.navCompactRow}>
-          <Clock size={14} color="#64748b" />
-          <Text style={styles.navCompactEta}>{formatDuration(duration)}</Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => onCloseNavigation?.()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={[styles.navClose, { backgroundColor: dismissBg }]}
+          accessibilityLabel="Close navigation"
+        >
+          <X size={20} color={dismissIcon} />
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <MapPin size={20} color="#fff" />
+    <View style={[styles.previewCard, { maxWidth: 380, width: '92%', backgroundColor: bg, borderColor, borderWidth }]}>
+      <View style={styles.previewHeaderRow}>
+        <View style={[styles.iconBox, { backgroundColor: iconWrapBg }]}>
+          <Ticket size={22} color={iconColor} strokeWidth={2.2} />
         </View>
-        <View style={styles.titleInfo}>
-          <Text style={styles.statusLabel}>{status}</Text>
-          <Text style={styles.titleText} numberOfLines={1}>
+        <View style={styles.previewHeaderText}>
+          <Text style={[styles.previewTitle, { color: textColor }]} numberOfLines={1}>
             {title}
           </Text>
-          {!!address && (
-            <Text style={styles.addressText} numberOfLines={2}>
-              {address}
-            </Text>
-          )}
         </View>
+        {onDismissPreview ? (
+          <TouchableOpacity
+            onPress={onDismissPreview}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={[styles.dismissBtn, { backgroundColor: dismissBg }]}
+            accessibilityLabel="Dismiss"
+          >
+            <X size={20} color={dismissIcon} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      <View style={styles.metricsRow}>
-        <View style={styles.metric}>
-          <Clock size={14} color="#64748b" />
-          <Text style={styles.metricText}>{formatDuration(duration)}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.metric}>
-          <Navigation size={14} color="#64748b" />
-          <Text style={styles.metricText}>{formatDistance(distance)}</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.button} onPress={() => onDirectionsClick?.()}>
-        <Navigation size={16} color="#fff" fill="#fff" />
-        <Text style={styles.buttonText}>Get directions</Text>
+      <TouchableOpacity style={[styles.navigateBtn, { backgroundColor: navBtnBg }]} onPress={() => onDirectionsClick?.()} activeOpacity={0.88}>
+        <Navigation size={18} color={navBtnText} />
+        <Text style={[styles.navigateBtnText, { color: navBtnText }]}>Navigate</Text>
       </TouchableOpacity>
-
-      {onDismissPreview ? (
-        <TouchableOpacity style={styles.dismissBtn} onPress={onDismissPreview}>
-          <Text style={styles.dismissText}>Dismiss route</Text>
-        </TouchableOpacity>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fff',
+  previewCard: {
     borderRadius: 24,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 10,
-    maxWidth: 340,
-  },
-  navCompact: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 14,
+    backgroundColor: CARD_GREEN,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 12,
-    maxWidth: 280,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    elevation: 8,
+    alignSelf: 'center',
   },
-  navCompactHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  navCompactTitleWrap: {
-    flex: 1,
-  },
-  navCompactLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  navCompactDistance: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#0f172a',
-  },
-  navCompactName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  navCompactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  navCompactEta: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  header: {
+  previewHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  iconContainer: {
+  iconBox: {
     width: 44,
     height: 44,
-    backgroundColor: '#10b981',
     borderRadius: 14,
-    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
-  },
-  iconContainerSmall: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#10b981',
-    borderRadius: 12,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  titleInfo: {
+  previewHeaderText: {
     flex: 1,
+    minWidth: 0,
   },
-  statusLabel: {
+  previewKicker: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 10,
     fontWeight: '800',
-    color: '#10b981',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.6,
+    marginBottom: 4,
   },
-  titleText: {
+  previewTitle: {
+    color: '#ffffff',
     fontSize: 17,
-    fontWeight: '900',
-    color: '#1e293b',
+    fontWeight: '800',
   },
-  addressText: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 14,
-  },
-  metric: {
-    flex: 1,
-    flexDirection: 'row',
+  dismissBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
-  metricText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
+  previewDistance: {
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 14,
   },
-  divider: {
-    width: 1,
-    height: 16,
-    backgroundColor: '#e2e8f0',
-  },
-  button: {
-    backgroundColor: '#10b981',
+  navigateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 48,
-    borderRadius: 14,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 14,
+  navigateBtnText: {
+    fontSize: 15,
     fontWeight: '800',
+    color: CARD_GREEN,
   },
-  dismissBtn: {
-    marginTop: 10,
+  navBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    justifyContent: 'space-between',
+    alignSelf: 'flex-start',
+    maxWidth: 320,
+    borderRadius: 20,
+    backgroundColor: CARD_GREEN,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  dismissText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b',
+  navDistance: {
+    color: '#ffffff',
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  navClose: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

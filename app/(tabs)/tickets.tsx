@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
 import { Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 export default function TicketsScreen() {
   const router = useRouter();
@@ -28,6 +28,7 @@ export default function TicketsScreen() {
   const [extendFor, setExtendFor] = useState<Reservation | null>(null);
   const [ticketFor, setTicketFor] = useState<Reservation | null>(null);
   const [liveCostBump, setLiveCostBump] = useState(0);
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -52,6 +53,31 @@ export default function TicketsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = (item: Reservation) => {
+    Alert.alert(
+      "Cancel Reservation",
+      "Are you sure you want to cancel this reservation?",
+      [
+        { text: "No, keep it", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            setCancelLoading(item.id);
+            try {
+              await reservationService.cancelReservation(item.id);
+              fetchData();
+            } catch (err) {
+              Alert.alert("Error", "Could not cancel reservation.");
+            } finally {
+              setCancelLoading(null);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const safeReservations = Array.isArray(reservations) ? reservations : [];
@@ -87,7 +113,7 @@ export default function TicketsScreen() {
           <TouchableOpacity
             onPress={() => router.push('/wallet')}
             style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
-            className={`flex-row items-center pl-4 pr-1.5 py-2 min-h-[52px] rounded-full border border-[#064e3b]/40 gap-0 ${isDark ? 'bg-[#1e293b]/40' : 'bg-white'}`}
+            className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
           >
             <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
               <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">BALANCE</Text>
@@ -261,6 +287,22 @@ export default function TicketsScreen() {
                           })()}
                         </Text>
                       </View>
+
+                      {item.status?.toUpperCase() === 'RESERVED' && (
+                        <TouchableOpacity
+                          onPress={() => handleCancel(item)}
+                          disabled={cancelLoading === item.id}
+                          className={`py-2.5 px-5 rounded-xl shrink-0 flex-row items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
+                        >
+                          {cancelLoading === item.id ? (
+                            <ActivityIndicator size="small" color="#ef4444" />
+                          ) : (
+                            <Text className={`font-extrabold text-[10px] tracking-widest ${isDark ? 'text-red-400' : 'text-red-500'}`}>
+                              CANCEL
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
                       {showExtend && (
                         <TouchableOpacity
                           onPress={() => setExtendFor(item)}

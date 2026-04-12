@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View, ActivityIndicator, Image, TextInput, Modal, TouchableWithoutFeedback } from 'react-native';
-import { Menu, MapPin, ChevronDown, Search, X, Bookmark, Settings, History, ArrowLeft, CreditCard, Target, AlertCircle, RefreshCw, ArrowRight, Wallet } from 'lucide-react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { parkingService, ParkingLocation } from '@/services/parkingService';
-import { walletService } from '@/services/walletService';
+import { BALANCE_PILL_DEFAULT_WIDTH, BalancePillShimmer } from '@/components/BalancePillShimmer';
 import { useAuth } from '@/context/AuthContext';
-import { MapView, type ReservationRouteContext } from '@/map-native/MapView';
 import { useMap } from '@/map-native/MapProvider';
-import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
+import { MapView, type ReservationRouteContext } from '@/map-native/MapView';
+import { ParkingLocation, parkingService } from '@/services/parkingService';
+import { walletService } from '@/services/walletService';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, MapPin, RefreshCw, Search, Target, Wallet } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { boundsFromLineString } from '@/map-native/lib/routeBounds';
+import { ActivityIndicator, Image, Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 
 export default function FindScreen() {
   const colorScheme = useColorScheme();
@@ -22,7 +23,7 @@ export default function FindScreen() {
     locationId?: string;
   }>();
   const { user } = useAuth();
-  const { actions, navigation, locateUser } = useMap();
+  const { actions, navigation, locateUser, cameraRef } = useMap();
 
   const [reservationRouteContext, setReservationRouteContext] = useState<ReservationRouteContext>(null);
 
@@ -42,9 +43,26 @@ export default function FindScreen() {
     { label: "600m", m: 600 },
   ];
 
+  const hideTopControls = useMemo(
+    () =>
+      selectedLocation != null ||
+      navigation.status === 'PREVIEW' ||
+      navigation.status === 'NAVIGATING' ||
+      navigation.status === 'ARRIVED',
+    [selectedLocation, navigation.status]
+  );
+
+  const hideBalancePill = hideTopControls;
+
+  const hideSearchBar = navigation.status === 'NAVIGATING' || navigation.status === 'ARRIVED';
+
+  // Round coordinates to 2 decimal places (approx 1.1km grid) to prevent continuous re-fetching on minor GPS drift
+  const userGridLat = navigation.userCoords ? Math.round(navigation.userCoords.lat * 100) / 100 : null;
+  const userGridLng = navigation.userCoords ? Math.round(navigation.userCoords.lng * 100) / 100 : null;
+
   useEffect(() => {
     fetchData();
-  }, [selectedDistance]);
+  }, [selectedDistance, userGridLat, userGridLng]);
 
   const clearReservationNavParams = useCallback(() => {
     router.setParams({
@@ -56,6 +74,7 @@ export default function FindScreen() {
   }, [router]);
 
   const handleDismissReservationRoute = useCallback(() => {
+    setSelectedLocation(null);
     setReservationRouteContext(null);
     actions.clearNavigation();
     clearReservationNavParams();
@@ -191,28 +210,32 @@ export default function FindScreen() {
         {/* Top Navigation Overlay */}
         <View className={`absolute left-6 right-6 z-50 ${Platform.OS === 'ios' ? 'top-[68px]' : 'top-[48px]'}`}>
           <View className="flex-row justify-between items-start">
-            <View className="flex-col gap-2">
-              <TouchableOpacity 
-                onPress={() => router.back()} 
-                className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
-              >
-                <ArrowLeft size={24} color={isDark ? '#34d399' : '#064e3b'} />
-              </TouchableOpacity>
+            {!hideTopControls ? (
+              <View className="flex-col gap-2">
+                <TouchableOpacity 
+                  onPress={() => router.back()} 
+                  className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                >
+                  <ArrowLeft size={24} color={isDark ? '#34d399' : '#064e3b'} />
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
-              >
-                <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
-              </TouchableOpacity>
-            </View>
+                {!hideSearchBar ? (
+                  <TouchableOpacity 
+                    className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                  >
+                    <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : <View />}
 
-            {loading ? (
+            {!hideBalancePill && loading ? (
               <BalancePillShimmer isDark={isDark} />
-            ) : (
+            ) : !hideBalancePill ? (
               <TouchableOpacity 
                 onPress={() => router.push('/wallet')}
                 style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
-                className={`flex-row items-center pl-4 pr-1.5 py-2 min-h-[52px] rounded-full border border-[#064e3b]/40 gap-0 ${isDark ? 'bg-[#1e293b]/40' : 'bg-white'}`}
+                className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
               >
                 <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
                   <Text className="text-[10px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
@@ -228,19 +251,18 @@ export default function FindScreen() {
                   <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
                 </View>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
         </View>
 
         {/* Balanced Controls Row */}
-        {(navigation.status === "IDLE" || navigation.status === "PREVIEW") && (
-          <View
-            className={`absolute bottom-[225px] left-6 right-6 flex-row items-end z-[60] ${
-              navigation.status === "PREVIEW" ? "justify-end" : "justify-between"
-            }`}
-            style={Platform.OS === 'android' ? { elevation: 14 } : undefined}
-            pointerEvents="box-none"
-          >
+        <View
+          className={`absolute bottom-[225px] left-6 right-6 flex-row items-end z-[60] ${
+            navigation.status === "IDLE" ? "justify-between" : "justify-end"
+          }`}
+          style={Platform.OS === 'android' ? { elevation: 14 } : undefined}
+          pointerEvents="box-none"
+        >
             {navigation.status === "IDLE" && (
             <View className="relative h-14 justify-end">
               {showDistanceDropdown && (
@@ -272,8 +294,28 @@ export default function FindScreen() {
                 activeOpacity={0.8}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 onPress={() => {
-                  setSelectedLocation(null);
-                  void locateUser();
+                  if (navigation.status !== 'IDLE') {
+                    if (navigation.routeGeometry?.type === 'LineString' && cameraRef?.current?.fitBounds) {
+                      try {
+                        const user = navigation.userCoords;
+                        const extra = user ? [[user.lng, user.lat] as [number, number]] : [];
+                        const bounds = boundsFromLineString(navigation.routeGeometry as any, extra);
+                        cameraRef.current.fitBounds(bounds.ne, bounds.sw, [240, 44, 220, 44], 900);
+                      } catch { /* ignore */ }
+                    } else if (navigation.destination && cameraRef?.current?.setCamera) {
+                      cameraRef.current.setCamera({
+                        centerCoordinate: [navigation.destination.lng, navigation.destination.lat],
+                        zoomLevel: 15.5,
+                        animationDuration: 1000,
+                        animationMode: 'flyTo',
+                        pitch: 0,
+                        heading: 0
+                      });
+                    }
+                  } else {
+                    setSelectedLocation(null);
+                    void locateUser();
+                  }
                 }}
                 className={`w-12 h-12 rounded-full items-center justify-center shadow-lg border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
               >
@@ -281,7 +323,6 @@ export default function FindScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        )}
 
         {/* Parking Cards Carousel */}
         {navigation.status === 'IDLE' && (

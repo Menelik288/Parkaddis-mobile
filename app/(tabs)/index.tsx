@@ -1,4 +1,5 @@
 import { TicketQrModal } from '@/components/TicketQrModal';
+import { AmountLineShimmer } from '@/components/BalancePillShimmer';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -25,7 +26,7 @@ import {
   useColorScheme,
   Alert,
 } from 'react-native';
-import { Menu, Bookmark, Settings, MapPin, History, CloudOff, LayoutGrid, Wallet, User as UserIcon, Navigation as NavigationIcon, Clock, QrCode, CheckCircle, XCircle } from 'lucide-react-native';
+import { Menu, Bookmark, Settings, MapPin, History, CloudOff, LayoutGrid, Wallet, User as UserIcon, Navigation as NavigationIcon, QrCode, CheckCircle, XCircle } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
@@ -67,6 +68,7 @@ export default function DashboardScreen() {
       const fromList =
         list.find(r => r.status?.toUpperCase() === 'ACTIVE') ||
         list.find(r => r.status?.toUpperCase() === 'RESERVED') ||
+        list.find(r => r.status?.toUpperCase() === 'UNPAID') ||
         null;
 
       let active = fromList;
@@ -140,30 +142,44 @@ export default function DashboardScreen() {
     setNavLoading(true);
     try {
       const dest = await resolveReservationDestination(activeReservation);
-      if (!dest) {
-        Alert.alert(
-          'Location unavailable',
-          'We could not load your parking spot coordinates. Try again after the reservation syncs.'
-        );
+      const name = getReservationLocationLabel(activeReservation, 'Parking');
+      const locId =
+        activeReservation.spot?.location?.id ||
+        activeReservation.locationId ||
+        activeReservation.spot?.locationId ||
+        activeReservation.spotId;
+
+      if (dest) {
+        router.push(`/find?destLat=${dest.lat}&destLng=${dest.lng}&destName=${encodeURIComponent(name)}` as any);
         return;
       }
-      router.push({
-        pathname: '/(tabs)/find',
-        params: {
-          destLat: String(dest.lat),
-          destLng: String(dest.lng),
-          destName: getReservationLocationLabel(activeReservation, 'Parking'),
-        },
-      } as any);
+
+      if (locId) {
+        router.push(`/find?locationId=${locId}&destName=${encodeURIComponent(name)}` as any);
+        return;
+      }
+
+      Alert.alert(
+        'Location unavailable',
+        'We could not load your parking spot coordinates. Try again after the reservation syncs.'
+      );
     } finally {
       setNavLoading(false);
     }
   };
 
   const safeReservations = Array.isArray(reservations) ? reservations : [];
-  const activeCount = safeReservations.filter(r => r.status === 'ACTIVE' || r.status === 'RESERVED').length;
+  const activeCount = safeReservations.filter(r => {
+    const s = String(r.status ?? '').toUpperCase();
+    return s === 'ACTIVE' || s === 'RESERVED' || s === 'UNPAID';
+  }).length;
   const totalCount = safeReservations.length;
   const recentHistory = safeReservations.slice(0, 3);
+
+  const sessionStatus = activeReservation?.status?.toUpperCase() ?? '';
+  const isUnpaidCard = sessionStatus === 'UNPAID';
+  const isReservedCard = sessionStatus === 'RESERVED';
+  const isActiveCard = sessionStatus === 'ACTIVE';
 
   if (!user) return null;
 
@@ -247,7 +263,11 @@ export default function DashboardScreen() {
             </View>
             <View>
               <Text className="text-[#475569] text-[10px] font-bold uppercase tracking-wider mb-1">Active Now</Text>
-              <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{loading ? '--' : activeCount.toString().padStart(2, '0')}</Text>
+              {loading ? (
+                <View style={{ width: 60 }}><AmountLineShimmer isDark={isDark} style={{ height: 32, marginTop: 4 }} /></View>
+              ) : (
+                <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{activeCount.toString()}</Text>
+              )}
             </View>
           </View>
 
@@ -257,7 +277,11 @@ export default function DashboardScreen() {
             </View>
             <View>
               <Text className="text-[#475569] text-[10px] font-bold uppercase tracking-wider mb-1">Total Bookings</Text>
-              <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{loading ? '--' : totalCount.toString()}</Text>
+              {loading ? (
+                <View style={{ width: 60 }}><AmountLineShimmer isDark={isDark} style={{ height: 32, marginTop: 4 }} /></View>
+              ) : (
+                <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{totalCount.toString()}</Text>
+              )}
             </View>
           </View>
         </View>
@@ -267,30 +291,58 @@ export default function DashboardScreen() {
           <View className="flex-row items-center justify-between mb-4">
             <Text className={`text-2xl font-bold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>
               {activeReservation
-                ? activeReservation.status?.toUpperCase() === 'RESERVED'
+                ? isReservedCard
                   ? 'Upcoming reservation'
-                  : 'Active Session'
+                  : isUnpaidCard
+                    ? 'Payment due'
+                    : 'Active Session'
                 : 'Quick Actions'}
             </Text>
-            {activeReservation?.status?.toUpperCase() === 'ACTIVE' && (
+            {isActiveCard && (
               <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <View className="w-2 h-2 rounded-full bg-emerald-500" />
                 <Text className="text-[10px] font-black text-emerald-500 tracking-wider">LIVE NOW</Text>
               </View>
             )}
+            {isUnpaidCard && (
+              <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25">
+                <View className="w-2 h-2 rounded-full bg-amber-500" />
+                <Text className="text-[10px] font-black text-amber-600 tracking-wider">UNPAID</Text>
+              </View>
+            )}
           </View>
 
           {activeReservation ? (
-            <View className={`rounded-[40px] border p-8 bg-white border-[#d1fae5] shadow-lg shadow-[#064e3b]/10`}>
-              {activeReservation.status?.toUpperCase() === 'ACTIVE' ? (
-                <View className="items-center mb-6">
-                  <Text numberOfLines={1} className="text-sm font-bold text-[#064e3b] mb-1">
-                    {getReservationLocationLabel(activeReservation, 'Active Station')}
+            <View
+              className={`rounded-[40px] border p-6 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#d1fae5] shadow-lg shadow-[#064e3b]/10'}`}
+            >
+              <Text
+                numberOfLines={2}
+                className={`text-base font-bold mb-1 ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+              >
+                {getReservationLocationLabel(activeReservation, 'Parking')}
+              </Text>
+
+              {isReservedCard ? (
+                <Text className={`text-xs font-medium mb-5 ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
+                  Arrive by {dayjs(activeReservation.startTime).format('MMM D · hh:mm A')}
+                </Text>
+              ) : null}
+
+              {isUnpaidCard ? (
+                <Text className={`text-xs font-medium mb-5 ${isDark ? 'text-[#fbbf24]/90' : 'text-amber-700'}`}>
+                  Complete payment to finish this session. You can pay with wallet or Chapa on the next screen.
+                </Text>
+              ) : null}
+
+              {isActiveCard ? (
+                <View className="items-center mb-5">
+                  <Text className={`text-[10px] font-black uppercase tracking-[3px] mb-2 ${isDark ? 'text-[#34d399]' : 'text-[#34d399]'}`}>
+                    TIME REMAINING
                   </Text>
-                  <Text className={`text-[10px] font-black uppercase tracking-[3px] mb-2 text-[#34d399]`}>TIME REMAINING</Text>
                   <View className="w-full items-center" style={{ minWidth: 280 }}>
                     <Text
-                      className="text-[56px] font-black text-[#064e3b] text-center"
+                      className={`text-[56px] font-black text-center ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
                       style={{
                         fontVariant: ['tabular-nums'],
                         letterSpacing: Platform.OS === 'ios' ? -1.5 : 0,
@@ -301,91 +353,90 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 </View>
-              ) : (
-                <View className={`items-center mb-6 p-6 rounded-3xl border bg-[#ecfdf5]/50 border-[#d1fae5]`}>
-                  <Clock size={32} color="#064e3b" style={{ marginBottom: 12 }} />
-                  <Text className={`text-xs font-black uppercase tracking-widest mb-1 text-[#34d399]`}>RESERVED SPOT</Text>
-                  <Text className={`text-lg font-bold text-center text-[#064e3b]`}>
-                    Awaiting arrival at {dayjs(activeReservation.startTime).format('hh:mm A')}
-                  </Text>
-                </View>
-              )}
+              ) : null}
 
-              {activeReservation.status?.toUpperCase() === 'ACTIVE' && (
-                <View className="mb-6">
-                  <View className={`h-2.5 w-full rounded-full overflow-hidden bg-[#ecfdf5]`}>
+              {isActiveCard ? (
+                <View className="mb-5">
+                  <View className={`h-2.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-[#0f172a]' : 'bg-[#ecfdf5]'}`}>
                     <View
                       style={{ width: `${progress * 100}%` }}
-                      className={`h-full bg-[#064e3b]`}
+                      className={`h-full ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
                     />
                   </View>
                   <View className="flex-row justify-between mt-3 px-1">
                     <View>
                       <Text className="text-[9px] font-bold text-[#94a3b8] mb-0.5">STARTED</Text>
-                      <Text className={`text-xs font-black text-[#0f172a]`}>
+                      <Text className={`text-xs font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
                         {(getReservationEntryInstant(activeReservation) ?? dayjs(activeReservation.startTime)).format('hh:mm A')}
                       </Text>
                     </View>
                     <View className="items-end">
                       <Text className="text-[9px] font-bold text-[#94a3b8] mb-0.5">ENDS</Text>
-                      <Text className={`text-xs font-black text-[#0f172a]`}>{dayjs(activeReservation.endTime).format('hh:mm A')}</Text>
+                      <Text className={`text-xs font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
+                        {dayjs(activeReservation.endTime).format('hh:mm A')}
+                      </Text>
                     </View>
                   </View>
                 </View>
-              )}
+              ) : null}
 
-              <View className={`w-full h-px border-t border-dashed mb-6 border-[#d1fae5]`} />
+              <View className={`w-full h-px border-t border-dashed mb-5 ${isDark ? 'border-[#334155]' : 'border-[#d1fae5]'}`} />
 
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-[9px] font-bold text-[#94a3b8] mb-1 uppercase tracking-wider">
-                    {activeReservation.status?.toUpperCase() === 'RESERVED' ? 'ESTIMATED COST' : 'CURRENT COST'}
-                  </Text>
-                  <Text className={`text-2xl font-black text-[#064e3b]`}>
-                    {liveSessionCostEt} ETB
-                  </Text>
-                </View>
+              <View className="mb-5">
+                <Text className="text-[9px] font-bold text-[#94a3b8] mb-1 uppercase tracking-wider">
+                  {isReservedCard ? 'ESTIMATED COST' : isUnpaidCard ? 'AMOUNT DUE' : 'CURRENT COST'}
+                </Text>
+                <Text className={`text-2xl font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
+                  {liveSessionCostEt} ETB
+                </Text>
+              </View>
 
-                <View className="flex-row items-center gap-3">
-                  {activeReservation.status?.toUpperCase() === 'ACTIVE' ? (
-                    <>
-                      {dayjs().isAfter(dayjs(activeReservation.endTime)) ? (
-                        <TouchableOpacity
-                          className="h-14 px-8 rounded-2xl bg-amber-500 items-center justify-center shadow-lg shadow-amber-500/20"
-                          onPress={() => router.push({ pathname: '/checkout', params: { reservationId: activeReservation.id } } as any)}
-                        >
-                          <Text className="text-white font-black text-sm">Pay Now</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity
-                          className="h-14 w-14 rounded-2xl items-center justify-center shadow-lg bg-[#064e3b] shadow-[#064e3b]/20"
-                          onPress={() => setTicketQrFor(activeReservation)}
-                          accessibilityLabel="Show parking ticket QR"
-                        >
-                          <QrCode size={24} color="#ffffff" />
-                        </TouchableOpacity>
-                      )}
-                    </>
+              {isUnpaidCard ? (
+                <TouchableOpacity
+                  className="h-14 rounded-2xl items-center justify-center mb-4"
+                  style={{ backgroundColor: '#064e3b' }}
+                  onPress={() =>
+                    router.push({ pathname: '/checkout', params: { reservationId: activeReservation.id } } as any)
+                  }
+                  accessibilityLabel="Pay now with wallet or Chapa"
+                >
+                  <Text className="text-white font-black text-base">Pay Now</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {isActiveCard && dayjs().isAfter(dayjs(activeReservation.endTime)) ? (
+                <TouchableOpacity
+                  className="h-12 rounded-2xl bg-amber-500 items-center justify-center mb-4"
+                  onPress={() => router.push({ pathname: '/checkout', params: { reservationId: activeReservation.id } } as any)}
+                >
+                  <Text className="text-white font-black text-sm">Pay Now</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  className={`flex-1 min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 px-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                  onPress={() => setTicketQrFor(activeReservation)}
+                  accessibilityLabel="Show parking ticket QR code"
+                >
+                  <QrCode size={22} color={isDark ? '#0f172a' : '#ffffff'} />
+                  <Text className={`font-black text-sm ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>QR code</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`flex-1 min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 border px-2 ${isDark ? 'border-[#34d399] bg-[#0f172a]' : 'border-[#064e3b] bg-white'}`}
+                  onPress={openFindWithReservationRoute}
+                  disabled={navLoading}
+                  accessibilityLabel="Open directions to parking on map"
+                >
+                  {navLoading ? (
+                    <ActivityIndicator size="small" color={isDark ? secondary : primary} />
                   ) : (
-                    <TouchableOpacity
-                      className="h-14 w-14 rounded-2xl items-center justify-center shadow-lg bg-[#064e3b] shadow-[#064e3b]/20"
-                      onPress={() => setTicketQrFor(activeReservation)}
-                      accessibilityLabel="Show parking ticket QR"
-                    >
-                      <QrCode size={24} color="#ffffff" />
-                    </TouchableOpacity>
+                    <>
+                      <NavigationIcon size={22} color={isDark ? secondary : primary} />
+                      <Text className={`font-black text-sm ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>Directions</Text>
+                    </>
                   )}
-                  <TouchableOpacity
-                    onPress={() => {
-                      const s = activeReservation.status?.toUpperCase();
-                      if (s === 'RESERVED' || s === 'ACTIVE') openFindWithReservationRoute();
-                    }}
-                    disabled={navLoading}
-                    className={`h-14 w-14 rounded-2xl items-center justify-center border shadow-sm bg-white border-slate-200 ${navLoading ? 'opacity-60' : ''}`}
-                  >
-                    <NavigationIcon size={22} color="#064e3b" />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           ) : (

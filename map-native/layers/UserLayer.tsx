@@ -17,7 +17,7 @@ export function UserLayer() {
       anchor={{ x: 0.5, y: 0.5 }}
       allowOverlap
     >
-      <View collapsable={false}>
+      <View collapsable={false} style={{ overflow: 'visible' }}>
         <UserLocationMarker />
       </View>
     </MapLibreGL.MarkerView>

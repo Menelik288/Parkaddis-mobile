@@ -4,6 +4,13 @@ import { InteractionManager } from "react-native";
 import { ADDIS_ABABA_CENTER } from "@/lib/location";
 import { NavigationState, NavigationActions, Coords } from "./navigation/NavigationTypes";
 import { useNavigationState } from "./hooks/useNavigationState";
+import { useBearingSmoothing } from "./hooks/useBearingSmoothing";
+
+/** Last visible map bounds while status is IDLE (for restoring after pin / preview dismiss). */
+export type MapRegionSnapshot = {
+  ne: [number, number];
+  sw: [number, number];
+};
 
 interface MapContextType {
   coords: Coords | null;
@@ -14,6 +21,11 @@ interface MapContextType {
   cameraRef: React.RefObject<any>;
   /** Native MapView finished loading; Camera.setNativeProps is safe after this. */
   mapViewHasLoadedRef: React.MutableRefObject<boolean>;
+  /** Smoothed GPS heading (deg); shared by NavigationCamera + user puck arrow */
+  smoothedBearing: number;
+  updateSmoothedBearing: (deg: number) => void;
+  /** Updated from MapView while IDLE — used to restore the view when clearing route preview. */
+  idleRegionRef: React.MutableRefObject<MapRegionSnapshot | null>;
 }
 
 export const MapContext = createContext<MapContextType | null>(null);
@@ -36,8 +48,11 @@ export function MapProvider({ children }: { children: ReactNode }) {
     stopNavigation,
   } = useNavigationState();
 
+  const { smoothedBearing, updateBearing: updateSmoothedBearing } = useBearingSmoothing();
+
   const cameraRef = React.useRef<any>(null);
   const mapViewHasLoadedRef = React.useRef(false);
+  const idleRegionRef = React.useRef<MapRegionSnapshot | null>(null);
 
   const scheduleFlyToCoords = useCallback((lng: number, lat: number) => {
     const run = () => {
@@ -140,7 +155,10 @@ export function MapProvider({ children }: { children: ReactNode }) {
     actions,
     cameraRef,
     mapViewHasLoadedRef,
-  }), [coords, locateUser, isLoading, navigation, actions]);
+    smoothedBearing,
+    updateSmoothedBearing,
+    idleRegionRef,
+  }), [coords, locateUser, isLoading, navigation, actions, smoothedBearing, updateSmoothedBearing]);
 
   return (
     <MapContext.Provider value={contextValue}>

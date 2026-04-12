@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { X } from 'lucide-react-native';
+import { View, StyleSheet } from 'react-native';
 import MapRoot from './MapRoot';
 import { useMap } from './MapProvider';
 import { ParkingLayer } from './layers/ParkingLayer';
@@ -87,7 +86,7 @@ export function MapView({
           <ActiveReservationCard
             title={previewTitle}
             address={previewAddress}
-            status="ROUTE PREVIEW"
+            status="ACTIVE SESSION"
             distance={navigation.remainingDistance}
             duration={navigation.remainingDuration}
             mode="preview"
@@ -98,7 +97,7 @@ export function MapView({
       )}
 
       {(showNavigatingCard || showArrivedCard) && (
-        <View style={styles.topLeftOverlay} pointerEvents="box-none">
+        <View style={styles.topLeftOverlayNav} pointerEvents="box-none">
           <ActiveReservationCard
             title={previewTitle}
             address={previewAddress}
@@ -106,11 +105,13 @@ export function MapView({
             distance={navigation.remainingDistance}
             duration={navigation.remainingDuration}
             mode="navigating"
+            onCloseNavigation={() => {
+              actions.clearNavigation();
+              if (onDismissReservationRoute) {
+                onDismissReservationRoute();
+              }
+            }}
           />
-          <TouchableOpacity onPress={() => actions.clearNavigation()} style={styles.closeNavBtn}>
-            <X size={16} color="#64748b" />
-            <Text style={styles.closeNavText}>Exit navigation</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -123,30 +124,21 @@ const styles = StyleSheet.create({
   },
   topLeftOverlay: {
     position: 'absolute',
-    top: 52,
+    top: 68,
+    left: 16,
+    right: 16,
+    zIndex: 100,
+    alignItems: 'center',
+    gap: 10,
+  },
+  /** Slightly lower while navigating so the distance bar clears the header chrome. */
+  topLeftOverlayNav: {
+    position: 'absolute',
+    top: 68,
     left: 16,
     right: 16,
     zIndex: 100,
     alignItems: 'flex-start',
     gap: 10,
-  },
-  closeNavBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  closeNavText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
   },
 });

@@ -83,9 +83,7 @@ export function TicketQrModal({ visible, reservation, onClose }: Props) {
                 )}
               </View>
               <Text className="text-center text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mt-3">
-                {String(reservation.status ?? '').toUpperCase() === 'RESERVED'
-                  ? 'Scan at entrance'
-                  : 'Scan to exit'}
+                Scan at entrance
               </Text>
 
               <View className="relative my-6 mx-1">
