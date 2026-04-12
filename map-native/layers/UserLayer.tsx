@@ -1,0 +1,25 @@
+import MapLibreGL from '@maplibre/maplibre-react-native';
+import { View } from 'react-native';
+import { useMap } from '../MapProvider';
+import { UserLocationMarker } from '../ui/UserLocationMarker';
+
+/**
+ * Custom user location (brand secondary + pulse). Uses merged GPS from navigation context.
+ */
+export function UserLayer() {
+  const { coords, navigation } = useMap();
+  const pos = navigation.userCoords || coords;
+  if (!pos) return null;
+
+  return (
+    <MapLibreGL.MarkerView
+      coordinate={[pos.lng, pos.lat]}
+      anchor={{ x: 0.5, y: 0.5 }}
+      allowOverlap
+    >
+      <View collapsable={false}>
+        <UserLocationMarker />
+      </View>
+    </MapLibreGL.MarkerView>
+  );
+}

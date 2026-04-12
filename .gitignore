@@ -41,3 +41,26 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Bun
+.bun-build/
+bun-debug.log*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+
+# DOCS
+backend_api_docs2.md
+backend_api_docs.md
+Refining ParkAddis Reservation Interface.md
+

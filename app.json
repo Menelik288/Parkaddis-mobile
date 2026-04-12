@@ -10,32 +10,45 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bi9ears.Parkaddis"
+      "bundleIdentifier": "com.captnoah.Parkaddis",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",
+        "NSMotionUsageDescription": "Allows the map to rotate according to your device orientation."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#064e3b",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.bi9ears.Parkaddis"
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "package": "com.captnoah.Parkaddis",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "hardwareAccelerated": true
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class com.mapbox.** { *; }\n-keep class org.maplibre.** { *; }\n-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }"
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#064e3b",
           "dark": {
             "backgroundColor": "#000000"
           }
@@ -55,9 +68,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "cb60f128-5a96-488b-9881-4142aa3c6161"
+        "projectId": "b9b6b3ae-e123-4a07-adf5-bdddbb95b8bf"
       }
     },
-    "owner": "bi9ears"
+    "owner": "capt_noah"
   }
 }
