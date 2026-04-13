@@ -36,10 +36,10 @@ const MapRoot = ({ children }: MapRootProps) => {
 
   return (
     <View style={styles.container}>
-      {/* STABLE v10 MapView - using standard 'styleURL' */}
+      {/* STABLE v11 MapView - using standard 'styleURL' / 'mapStyle' */}
       <MapLibreGL.MapView
         style={styles.map}
-        mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        styleURL="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
         logoEnabled={false}
         attributionEnabled={false}
         onRegionDidChange={onRegionDidChange}
@@ -47,26 +47,17 @@ const MapRoot = ({ children }: MapRootProps) => {
           mapViewHasLoadedRef.current = true;
         }}
       >
-        {/* STABLE Camera - standard v10 implementation */}
+        {/* STABLE Camera - standard v11 implementation */}
         <MapLibreGL.Camera 
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: DEFAULT_CENTER,
-            zoomLevel: 14.5,
-          }}
+          centerCoordinate={DEFAULT_CENTER}
+          zoomLevel={14.5}
         />
         
         {children}
       </MapLibreGL.MapView>
 
-      {/* Antique / Vintage Tint Overlay */}
-      <View 
-        pointerEvents="none" 
-        style={[
-          StyleSheet.absoluteFill, 
-          { backgroundColor: 'rgba(139, 69, 19, 0.12)', zIndex: 10 }
-        ]} 
-      />
+
     </View>
   );
 };
