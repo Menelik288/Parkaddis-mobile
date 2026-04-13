@@ -1,10 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { MAP_PIN_PRIMARY } from './mapPinTokens';
 
 type Props = {
   selected?: boolean;
-  onPress?: () => void;
 };
 
 const BUBBLE = 44;
@@ -14,15 +13,15 @@ const ANCHOR_HEIGHT = BUBBLE + 18;
 /**
  * Parking pin: primary bubble + "P", pointer + tip. Parent should use MarkerView anchor y=1 so tip sits on coordinates.
  */
-export function ParkingPinMarker({ selected, onPress }: Props) {
+export function ParkingPinMarker({ selected }: Props) {
   return (
-    <Pressable onPress={onPress} hitSlop={10} style={styles.root}>
+    <View style={styles.root}>
       <View style={[styles.bubble, selected && styles.bubbleSelected]}>
         <Text style={styles.letter}>P</Text>
       </View>
       <View style={styles.pointer} />
       <View style={styles.tipDot} />
-    </Pressable>
+    </View>
   );
 }
 

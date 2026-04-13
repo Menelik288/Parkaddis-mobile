@@ -26,20 +26,17 @@ export function ParkingLayer({ locations, onLocationClick, selectedLocationId }:
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
         const selected = selectedLocationId != null && String(selectedLocationId) === String(id);
         return (
-          <MapLibreGL.MarkerView
+          <MapLibreGL.PointAnnotation
             key={String(id)}
+            id={String(id)}
             coordinate={[lng, lat]}
             anchor={{ x: 0.5, y: 1 }}
-            allowOverlap
-            isSelected={selected}
+            onSelected={() => onLocationClick(String(id))}
           >
             <View collapsable={false}>
-              <ParkingPinMarker
-                selected={selected}
-                onPress={() => onLocationClick(String(id))}
-              />
+              <ParkingPinMarker selected={selected} />
             </View>
-          </MapLibreGL.MarkerView>
+          </MapLibreGL.PointAnnotation>
         );
       })}
     </>

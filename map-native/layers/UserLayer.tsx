@@ -12,14 +12,14 @@ export function UserLayer() {
   if (!pos) return null;
 
   return (
-    <MapLibreGL.MarkerView
+    <MapLibreGL.PointAnnotation
+      id="user-location"
       coordinate={[pos.lng, pos.lat]}
       anchor={{ x: 0.5, y: 0.5 }}
-      allowOverlap
     >
       <View collapsable={false} style={{ overflow: 'visible' }}>
         <UserLocationMarker />
       </View>
-    </MapLibreGL.MarkerView>
+    </MapLibreGL.PointAnnotation>
   );
 }
