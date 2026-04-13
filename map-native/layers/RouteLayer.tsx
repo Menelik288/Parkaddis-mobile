@@ -26,6 +26,7 @@ export function RouteLayer() {
           lineCap: 'round',
           lineOpacity: 0.8,
         }}
+        layerIndex={150}
       />
     </MapLibreGL.ShapeSource>
   );
