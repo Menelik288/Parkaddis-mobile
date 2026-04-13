@@ -30,6 +30,7 @@ import {
   Platform,
   useColorScheme,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Menu, Bookmark, Settings, MapPin, History, CloudOff, Search, X, LayoutGrid, Wallet, User as UserIcon, Navigation as NavigationIcon, QrCode, CheckCircle, XCircle, Clock } from 'lucide-react-native';
 
@@ -103,6 +104,7 @@ export default function DashboardScreen() {
   const [navLoading, setNavLoading] = useState(false);
   const [ticketQrFor, setTicketQrFor] = useState<Reservation | null>(null);
   const [costMinuteBump, setCostMinuteBump] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Search
   const [showSearch, setShowSearch] = useState(false);
@@ -162,8 +164,14 @@ export default function DashboardScreen() {
       setReservations([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchDashboardData();
+  }, []);
 
   useEffect(() => {
     if (!activeReservation || activeReservation.status?.toUpperCase() !== 'ACTIVE') return;
@@ -365,7 +373,18 @@ export default function DashboardScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? secondary : primary}
+            colors={[secondary]}
+          />
+        }
+      >
         {/* Welcome */}
         <View className="mt-2 mb-1">
           <Text className="text-[11px] font-bold uppercase tracking-[2px] text-[#94a3b8] mb-2">WELCOME BACK</Text>

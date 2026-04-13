@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
 import { Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 export default function TicketsScreen() {
   const router = useRouter();
@@ -29,6 +29,7 @@ export default function TicketsScreen() {
   const [ticketFor, setTicketFor] = useState<Reservation | null>(null);
   const [liveCostBump, setLiveCostBump] = useState(0);
   const [cancelLoading, setCancelLoading] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -52,8 +53,14 @@ export default function TicketsScreen() {
       console.warn('Failed to fetch ticket data', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, []);
 
   const handleCancel = (item: Reservation) => {
     Alert.alert(
@@ -182,11 +189,18 @@ export default function TicketsScreen() {
         className="flex-1 px-6" 
         contentContainerStyle={{ paddingBottom: 160 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? secondary : primary}
+            colors={[secondary]}
+          />
+        }
       >
         {/* Headline */}
         <View className="mb-8 mt-4">
           <Text className={`text-[32px] font-extrabold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Your Tickets</Text>
-          <Text className="text-sm text-[#64748b] mt-1">Manage your active and previous parking sessions.</Text>
         </View>
 
         {/* Filter Toggle */}

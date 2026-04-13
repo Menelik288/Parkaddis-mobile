@@ -13,6 +13,7 @@ import {
   Alert,
   Easing,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +53,7 @@ function DotGrid() {
       dots.push(
         <View
           key={`${r}-${c}`}
-          style={{ width: 2, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.13)', margin: 5 }}
+          style={{ width: 1.2, height: 1.2, borderRadius: 0.6, backgroundColor: 'rgba(255,255,255,0.06)', margin: 5 }}
         />
       );
     }
@@ -136,6 +137,7 @@ export default function WalletScreen() {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [topUpLoading, setTopUpLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'Chapa' | 'Telebirr'>('Chapa');
   const [lastTopUpTxRef, setLastTopUpTxRef] = useState('');
   const slideAnim = useRef(new Animated.Value(800)).current;
@@ -164,8 +166,14 @@ export default function WalletScreen() {
       console.error('Failed to fetch wallet data', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchWalletData();
+  }, []);
 
   const openTopUp = () => {
     setIsSuccess(false);
@@ -223,7 +231,18 @@ export default function WalletScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} edges={['bottom', 'left', 'right']}>
       <PageHeader title="Wallet" />
-      <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        className="px-6" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? CARD_ACCENT : primary}
+            colors={[CARD_ACCENT]}
+          />
+        }
+      >
         {/* === WALLET CARD === */}
         <View
           style={{
