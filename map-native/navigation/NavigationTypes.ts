@@ -1,4 +1,4 @@
-import { GeoJSON } from 'geojson';
+import type { LineString } from 'geojson';
 
 export type NavigationStatus = 'IDLE' | 'PREVIEW' | 'NAVIGATING' | 'ARRIVED';
 
@@ -11,7 +11,7 @@ export interface Coords {
 export interface NavigationState {
   status: NavigationStatus;
   destination: Coords | null;
-  routeGeometry: GeoJSON.LineString | null;
+  routeGeometry: LineString | null;
   bearing: number;
   userCoords: Coords | null;
   remainingDistance: number | null;

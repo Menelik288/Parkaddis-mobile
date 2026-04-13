@@ -93,18 +93,15 @@ export function useGeolocationWatcher() {
       try {
         const isAvailable = await Magnetometer.isAvailableAsync();
         if (isAvailable) {
-          const { status } = await Magnetometer.requestPermissionsAsync();
-          if (status === 'granted') {
-            magnetometerSub = Magnetometer.addListener((data) => {
-              let angle = Math.atan2(data.y, data.x) * (180 / Math.PI);
-              if (angle < 0) angle += 360;
-              
-              if (!lastCoords.current || (navigation.remainingDistance || 0) < 10) {
-                actions.setBearing(angle);
-              }
-            });
-            Magnetometer.setUpdateInterval(100);
-          }
+          magnetometerSub = Magnetometer.addListener((data) => {
+            let angle = Math.atan2(data.y, data.x) * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+            
+            if (!lastCoords.current || (navigation.remainingDistance || 0) < 10) {
+              actions.setBearing(angle);
+            }
+          });
+          Magnetometer.setUpdateInterval(100);
         }
       } catch (e) {
         console.warn("Magnetometer failed", e);
