@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { useMap } from './MapProvider';
 import React, { useCallback, useEffect } from 'react';
-import MapLibreGL from "@maplibre/maplibre-react-native";
+import MapLibreGL from '@maplibre/maplibre-react-native';
 
 interface MapRootProps {
   children?: React.ReactNode;
@@ -36,10 +36,10 @@ const MapRoot = ({ children }: MapRootProps) => {
 
   return (
     <View style={styles.container}>
-      {/* STABLE v11 MapView - using standard 'styleURL' / 'mapStyle' */}
+      {/* STABLE Maps - using mapStyle */}
       <MapLibreGL.MapView
         style={styles.map}
-        styleURL="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
         logoEnabled={false}
         attributionEnabled={false}
         onRegionDidChange={onRegionDidChange}
@@ -47,7 +47,7 @@ const MapRoot = ({ children }: MapRootProps) => {
           mapViewHasLoadedRef.current = true;
         }}
       >
-        {/* STABLE Camera - standard v11 implementation */}
+        {/* STABLE Camera */}
         <MapLibreGL.Camera 
           ref={cameraRef}
           centerCoordinate={DEFAULT_CENTER}
@@ -57,7 +57,14 @@ const MapRoot = ({ children }: MapRootProps) => {
         {children}
       </MapLibreGL.MapView>
 
-
+      {/* Antique / Vintage Tint Overlay (Restored original brownish color) */}
+      <View 
+        pointerEvents="none" 
+        style={[
+          StyleSheet.absoluteFill, 
+          { backgroundColor: 'rgba(139, 69, 19, 0.12)', zIndex: 10 }
+        ]} 
+      />
     </View>
   );
 };
