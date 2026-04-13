@@ -198,6 +198,14 @@ export default function ReserveScreen() {
       Alert.alert('Selection Required', 'Please ensure a vehicle is selected');
       return;
     }
+
+    // Validation: Start time must be in the future
+    const now = new Date();
+    if (startTime.getTime() < now.getTime() - 5 * 60 * 1000) { // 5 min grace
+      Alert.alert('Invalid Time', 'Arrival time cannot be in the past');
+      return;
+    }
+
     setBooking(true);
     try {
       await reservationService.createReservation({
@@ -369,20 +377,20 @@ export default function ReserveScreen() {
           <View className={`absolute -right-10 w-8 h-8 rounded-full ${isDark ? 'bg-black/20' : 'bg-black/5'}`} />
         </View>
 
-        <View className={`flex-row justify-between items-center p-4 rounded-2xl mb-4 border ${isDark ? 'bg-[#34d399]/10 border-[#34d399]/20' : 'bg-[#ecfdf5] border-[#d1fae5]/30'}`}>
+        <View className={`flex-row justify-between items-center p-5 rounded-3xl mb-4 border ${isDark ? 'bg-[#34d399]/10 border-[#34d399]/20' : 'bg-[#f0fdf4] border-[#d1fae5]'}`}>
            <View>
-             <Text className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isDark ? 'text-[#34d399]' : 'text-[#059669]'}`}>EST. COST</Text>
-             <Text className={`text-xs font-bold my-0.5 ${isDark ? 'text-[#64748b]' : 'text-slate-600'}`}>Total rate calculated below</Text>
+             <Text className={`text-[11px] font-black uppercase tracking-[1px] mb-0.5 ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>ESTIMATED PARKING FEE</Text>
+             <Text className={`text-[10px] font-bold ${isDark ? 'text-[#64748b]' : 'text-slate-500'}`}>Rate: ETB {pricePerHour}/hr</Text>
            </View>
-           <Text className={`text-xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>ETB {(hrs * pricePerHour).toFixed(2)}</Text>
+           <Text className={`text-2xl font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>ETB {(hrs * pricePerHour).toFixed(2)}</Text>
         </View>
 
         <TouchableOpacity 
           onPress={closeSheet} 
-          className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 shadow-xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/10' : 'bg-[#064e3b] shadow-[#064e3b]/20'}`}
+          className={`w-full py-5 rounded-[24px] flex-row items-center justify-center gap-2 shadow-2xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
         >
-           <Text className={`text-lg font-bold ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Update Schedule</Text>
-           <ArrowRight size={20} color={isDark ? '#0f172a' : 'white'} />
+           <Text className={`text-lg font-black tracking-tight ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Update Schedule</Text>
+           <CheckCircle2 size={22} color={isDark ? '#0f172a' : 'white'} />
         </TouchableOpacity>
       </View>
     );
@@ -499,7 +507,11 @@ export default function ReserveScreen() {
 
           <View className="flex-row">
             {/* Arrival Section */}
-            <View className="py-8 px-6 flex-col flex-1 relative justify-center">
+            <TouchableOpacity 
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+              className="py-8 px-6 flex-col flex-1 relative justify-center"
+            >
               <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ARRIVAL</Text>
               <View className="flex-row items-center gap-3">
                 <View className={`w-10 h-10 rounded-xl border items-center justify-center ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-slate-50 border-slate-100'}`}>
@@ -510,21 +522,17 @@ export default function ReserveScreen() {
                   <Text className={`text-[10px] font-bold uppercase tracking-tight mt-0.5 ${isDark ? 'text-[#94a3b8]' : 'text-slate-500'}`}>{startTime.toLocaleDateString('en-US', { weekday: 'short' })}</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Dash Boundary */}
             <View className={`h-[80px] w-px border-r-[2px] border-dashed self-center ${isDark ? 'border-[#334155]' : 'border-slate-200'}`} />
 
             {/* Time Slot Section */}
-            <View className="py-8 px-4 flex-col flex-1 relative justify-center">
-               <TouchableOpacity 
-                 onPress={() => openSheet('schedule')} 
-                 className="absolute top-3 right-3 p-2"
-                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-               >
-                 <Edit2 size={18} color={primary} fill={primary} />
-               </TouchableOpacity>
-
+            <TouchableOpacity 
+              onPress={() => openSheet('schedule')} 
+              activeOpacity={0.7}
+              className="py-8 px-4 flex-col flex-1 relative justify-center"
+            >
               <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>TIME SLOT</Text>
               <View className="flex-row items-center gap-3">
                 <View className={`w-10 h-10 rounded-xl border items-center justify-center ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-slate-50 border-slate-100'}`}>
@@ -537,7 +545,7 @@ export default function ReserveScreen() {
                   <Text className={`text-[9px] font-bold uppercase tracking-tight mt-0.5 ${isDark ? 'text-[#94a3b8]' : 'text-slate-500'}`}>{durationMins} MIN DURATION</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -566,28 +574,37 @@ export default function ReserveScreen() {
         <Text className={`text-2xl font-bold tracking-tight mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Price Receipt</Text>
 
         {/* Price Breakdown */}
-        <View className={`rounded-[32px] p-8 mb-12 relative overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-[#f4fdf8] border-transparent'}`}>
-          <View className="space-y-8 relative z-10">
-            <View className="flex-row justify-between items-start">
+        <View className={`rounded-[40px] p-8 mb-12 relative overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100 shadow-xl shadow-slate-200/50'}`}>
+          <View className="space-y-6 relative z-10">
+            <View className="flex-row justify-between items-center">
               <View>
-                <Text className={`text-[12px] font-bold uppercase tracking-wider mb-1 ${isDark ? 'text-[#94a3b8]' : 'text-[#7fb0a2]'}`}>PARKING ({hDisplay}H {mDisplay}M)</Text>
-                <Text className={`text-[14px] font-medium ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`}>{hrs.toFixed(2)} hrs × ETB {pricePerHour.toFixed(2)}/hr</Text>
+                <Text className={`text-[10px] font-black uppercase tracking-[2px] mb-1 ${isDark ? 'text-[#94a3b8]' : 'text-[#94a3b8]'}`}>PARKING DURATION</Text>
+                <Text className={`text-base font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{hDisplay}h {mDisplay}m</Text>
               </View>
-              <Text className={`text-[16px] font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#475569]'}`}>ETB {parkingFee.toFixed(2)}</Text>
+              <Text className={`text-base font-bold ${isDark ? 'text-[#f8fafc]' : 'text-slate-600'}`}>ETB {parkingFee.toFixed(2)}</Text>
             </View>
-            <View className="flex-row justify-between items-center top-1 relative">
-              <Text className={`text-[12px] font-bold uppercase tracking-wider ${isDark ? 'text-[#94a3b8]' : 'text-[#7fb0a2]'}`}>RESERVATION FEE</Text>
-              <Text className={`text-[16px] font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#475569]'}`}>ETB {resFee.toFixed(2)}</Text>
+            
+            <View className={`w-full h-px ${isDark ? 'bg-[#334155]' : 'bg-slate-50'}`} />
+
+            <View className="flex-row justify-between items-center">
+              <Text className={`text-[10px] font-black uppercase tracking-[2px] ${isDark ? 'text-[#94a3b8]' : 'text-[#94a3b8]'}`}>RESERVATION FEE</Text>
+              <Text className={`text-base font-bold ${isDark ? 'text-[#f8fafc]' : 'text-slate-600'}`}>ETB {resFee.toFixed(2)}</Text>
             </View>
-            <View className="flex-row justify-between items-center top-2 relative">
-              <Text className={`text-[12px] font-bold uppercase tracking-wider ${isDark ? 'text-[#94a3b8]' : 'text-[#7fb0a2]'}`}>SERVICE FEE</Text>
-              <Text className={`text-[16px] font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#475569]'}`}>ETB {srvFee.toFixed(2)}</Text>
+
+            <View className="flex-row justify-between items-center">
+              <Text className={`text-[10px] font-black uppercase tracking-[2px] ${isDark ? 'text-[#94a3b8]' : 'text-[#94a3b8]'}`}>SERVICE CHARGE</Text>
+              <Text className={`text-base font-bold ${isDark ? 'text-[#f8fafc]' : 'text-slate-600'}`}>ETB {srvFee.toFixed(2)}</Text>
+            </View>
+            
+            <View className={`pt-6 mt-2 border-t-2 border-dashed flex-row justify-between items-center ${isDark ? 'border-[#334155]' : 'border-emerald-100'}`}>
+              <Text className={`font-black text-xs uppercase tracking-[2px] ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>GRAND TOTAL</Text>
+              <Text className={`font-black text-3xl ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>ETB {totalPaid.toFixed(2)}</Text>
             </View>
           </View>
-          <View className={`mt-8 pt-6 border-t flex-row justify-between items-center ${isDark ? 'border-[#334155]' : 'border-[#d1fae5]/50'}`}>
-            <Text className={`font-bold text-[13px] uppercase tracking-wider ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>TOTAL</Text>
-            <Text className={`font-bold text-[26px] -mt-1 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>ETB {totalPaid.toFixed(2)}</Text>
-          </View>
+          
+          {/* Decorative semi-circles for ticket effect */}
+          <View className={`absolute top-1/2 -left-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+          <View className={`absolute top-1/2 -right-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
         </View>
 
         {/* Action Bottom */}

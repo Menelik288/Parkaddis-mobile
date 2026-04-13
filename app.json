@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.captnoah.Parkaddis",
+      "bundleIdentifier": "com.bi9ears.Parkaddis",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",
         "NSMotionUsageDescription": "Allows the map to rotate according to your device orientation."
@@ -25,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.captnoah.Parkaddis",
+      "package": "com.bi9ears.Parkaddis",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
@@ -68,9 +68,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b9b6b3ae-e123-4a07-adf5-bdddbb95b8bf"
+        "projectId": "cb60f128-5a96-488b-9881-4142aa3c6161"
       }
-    },
-    "owner": "capt_noah"
+    }
   }
 }

@@ -15,7 +15,7 @@ const PRIMARY_DARK = '#34d399';
 export function UserLocationMarker() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { navigation } = useMap();
+  const { navigation, smoothedBearing } = useMap();
   const isNavigating = navigation.status === 'NAVIGATING';
 
   const pulseScale = useRef(new Animated.Value(0.6)).current;
@@ -58,23 +58,25 @@ export function UserLocationMarker() {
 
   const accent = isDark ? PRIMARY_DARK : PRIMARY_LIGHT;
 
+  if (isNavigating) {
+    return (
+      <View 
+        style={[
+          styles.arrowWrap,
+          { transform: [{ rotate: `${smoothedBearing}deg` }] }
+        ]} 
+        pointerEvents="none"
+      >
+        <View style={[styles.arrowBody, { borderBottomColor: accent }]}>
+          <View style={styles.arrowInner} />
+        </View>
+        <View style={[styles.arrowBase, { backgroundColor: accent }]} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap} pointerEvents="none">
-      {isNavigating ? (
-        <View
-          style={[
-            styles.headingShell,
-            {
-              top: -42,
-              borderColor: accent,
-              backgroundColor: isDark ? 'rgba(15,23,42,0.92)' : '#ffffff',
-            },
-          ]}
-        >
-          <ArrowBigUp size={18} color={accent} strokeWidth={2.5} />
-        </View>
-      ) : null}
-
       <Animated.View
         style={[
           styles.pulse,
@@ -101,20 +103,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headingShell: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
+  arrowWrap: {
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  arrowBody: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 16,
+    borderRightWidth: 16,
+    borderBottomWidth: 32,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: PRIMARY_LIGHT,
+    transform: [{ translateY: -4 }],
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  arrowInner: {
+    position: 'absolute',
+    left: -10,
+    top: 6,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#fff',
+    opacity: 0.9,
+  },
+  arrowBase: {
+    position: 'absolute',
+    bottom: 22,
+    width: 14,
+    height: 6,
+    borderRadius: 2,
+    backgroundColor: PRIMARY_LIGHT,
   },
   pulse: {
     position: 'absolute',

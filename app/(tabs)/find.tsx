@@ -8,7 +8,62 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, MapPin, RefreshCw, Search, Target, Wallet } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { boundsFromLineString } from '@/map-native/lib/routeBounds';
-import { ActivityIndicator, Image, Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { getDistance } from '@/lib/navigation-utils';
+
+const NEIGHBORHOODS = [
+  { name: 'Bole', lat: 8.9958, lng: 38.7891 },
+  { name: 'Kazanchis', lat: 9.0205, lng: 38.7656 },
+  { name: 'Piazza', lat: 9.0358, lng: 38.7512 },
+  { name: 'Piassa', lat: 9.0358, lng: 38.7512 },
+  { name: '4 Kilo', lat: 9.0375, lng: 38.7619 },
+  { name: 'Sarbet', lat: 8.9950, lng: 38.7369 },
+  { name: '22 Mazoria', lat: 9.0145, lng: 38.7825 },
+  { name: 'Megenagna', lat: 9.0182, lng: 38.8021 },
+  { name: 'Lebu', lat: 8.9554, lng: 38.7107 },
+  { name: 'Jemo', lat: 8.9667, lng: 38.6833 },
+];
+
+const RADIUS_ZOOM_MAP: Record<string, number> = {
+  'Nearby': 17.5,
+  '500m': 16.2,
+  '1km': 15.2,
+  '3km': 14.2,
+  'Popular': 12.5,
+};
+
+const FEATURED_LANDMARKS: ParkingLocation[] = [
+  {
+    id: 'l-medhane-alem',
+    name: 'Bole Medhane Alem',
+    address: 'Bole, Addis Ababa',
+    geom: JSON.stringify([38.7899, 8.9958]),
+  },
+  {
+    id: 'l-bora-park',
+    name: 'Bora Amusement Park',
+    address: 'Off Bole Road',
+    geom: JSON.stringify([38.7956, 8.9906]),
+  },
+  {
+    id: 'l-century-mall',
+    name: 'Century Mall',
+    address: 'Gurd Shola',
+    geom: JSON.stringify([38.8139, 9.0203]),
+  },
+  {
+    id: 'l-edna-mall',
+    name: 'Edna Mall',
+    address: 'Bole, Addis Ababa',
+    geom: JSON.stringify([38.7876, 8.9984]),
+  },
+  {
+    id: 'l-kazanchis',
+    name: 'Kazanchis Central',
+    address: 'Kazanchis Area',
+    geom: JSON.stringify([38.7656, 9.0205]),
+  },
+];
 
 export default function FindScreen() {
   const colorScheme = useColorScheme();
@@ -33,14 +88,19 @@ export default function FindScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<ParkingLocation | null>(null);
   
-  const [selectedDistance, setSelectedDistance] = useState("All");
+  const [selectedDistance, setSelectedDistance] = useState("Nearby");
   const [showDistanceDropdown, setShowDistanceDropdown] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchResults, setSearchResults] = useState(NEIGHBORHOODS);
 
   const distanceOptions = [
-    { label: "All", m: 1000 },
-    { label: "200m", m: 200 },
-    { label: "400m", m: 400 },
-    { label: "600m", m: 600 },
+    { label: "Nearby", m: 200 },
+    { label: "500m", m: 500 },
+    { label: "1km", m: 1000 },
+    { label: "3km", m: 3000 },
+    { label: "Popular", m: 10000 },
   ];
 
   const hideTopControls = useMemo(
@@ -144,14 +204,98 @@ export default function FindScreen() {
         parkingService.getLocations(searchLat, searchLng, radiusMeters),
         walletService.getWallet()
       ]);
-      setLocations(Array.isArray(locs) ? locs : []);
+      
+      const apiLocs = Array.isArray(locs) ? locs : [];
+      
+      // Calculate distances for featured landmarks and filter them
+      const filteredLandmarks = FEATURED_LANDMARKS.map(land => {
+        const coords = JSON.parse(land.geom);
+        const dist = getDistance(searchLat, searchLng, coords[1], coords[0]);
+        return { ...land, distance: dist };
+      }).filter(land => land.distance <= radiusMeters);
+
+      // Combine and deduplicate
+      const combined = [...filteredLandmarks];
+      apiLocs.forEach(loc => {
+        if (!combined.find(c => c.id === loc.id)) {
+          combined.push(loc);
+        }
+      });
+
+      // Sort by distance
+      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+      setLocations(combined);
       setBalance(wallet.balance);
+
+      // Trigger map animation
+      const targetZoom = RADIUS_ZOOM_MAP[selectedDistance] || 15.2;
+      cameraRef.current?.setCamera({
+        centerCoordinate: [searchLng, searchLat],
+        zoomLevel: targetZoom,
+        animationDuration: 1200,
+        animationMode: 'flyTo',
+      });
       // Removed auto-select to prevent map "fighting" and infinite loops
       // if (Array.isArray(locs) && locs.length > 0) setSelectedLocation(locs[0]);
     } catch (err) {
       console.error('Failed to fetch find data', err);
       setError('Could not load parking data');
       setLocations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim()) {
+      setSearchResults(NEIGHBORHOODS);
+      return;
+    }
+    const filtered = NEIGHBORHOODS.filter(n => 
+      n.name.toLowerCase().includes(q.toLowerCase())
+    );
+    setSearchResults(filtered);
+  };
+
+  const selectNeighborhood = async (n: { lat: number; lng: number; name: string }) => {
+    setShowSearch(false);
+    setSearchQuery(n.name);
+    
+    // Animate to location
+    cameraRef.current?.setCamera({
+      centerCoordinate: [n.lng, n.lat],
+      zoomLevel: 15.2,
+      animationDuration: 1500,
+      animationMode: 'flyTo',
+    });
+
+    // Fetch data at new location
+    setLoading(true);
+    try {
+      const radiusMeters = distanceOptions.find(o => o.label === selectedDistance)?.m || 1000;
+      const [locs] = await Promise.all([
+        parkingService.getLocations(n.lat, n.lng, radiusMeters)
+      ]);
+      const apiLocs = Array.isArray(locs) ? locs : [];
+      
+      const filteredLandmarks = FEATURED_LANDMARKS.map(land => {
+        const coords = JSON.parse(land.geom);
+        const dist = getDistance(n.lat, n.lng, coords[1], coords[0]);
+        return { ...land, distance: dist };
+      }).filter(land => land.distance <= radiusMeters);
+
+      const combined = [...filteredLandmarks];
+      apiLocs.forEach(loc => {
+        if (!combined.find(c => c.id === loc.id)) {
+          combined.push(loc);
+        }
+      });
+      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      setLocations(combined);
+    } catch (err) {
+      setError('Could not update area results');
     } finally {
       setLoading(false);
     }
@@ -220,11 +364,43 @@ export default function FindScreen() {
                 </TouchableOpacity>
 
                 {!hideSearchBar ? (
-                  <TouchableOpacity 
-                    className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
-                  >
-                    <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
-                  </TouchableOpacity>
+                  <View className="flex-col gap-2">
+                    <TouchableOpacity 
+                      onPress={() => setShowSearch(!showSearch)}
+                      className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                    >
+                      <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
+                    </TouchableOpacity>
+
+                    {showSearch && (
+                      <View 
+                        className={`absolute left-0 top-14 w-[280px] rounded-3xl shadow-2xl overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'}`}
+                      >
+                        <View className="p-4 border-b border-slate-100 dark:border-slate-800">
+                          <TextInput
+                            autoFocus
+                            placeholder="Search area (e.g. Bole)"
+                            placeholderTextColor="#94a3b8"
+                            className={`h-10 px-4 rounded-xl font-semibold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
+                            value={searchQuery}
+                            onChangeText={handleSearch}
+                          />
+                        </View>
+                        <ScrollView className="max-h-[240px]">
+                          {searchResults.map((n) => (
+                            <TouchableOpacity 
+                              key={n.name}
+                              onPress={() => selectNeighborhood(n)}
+                              className="px-5 py-4 border-b border-slate-50 dark:border-slate-800 flex-row items-center gap-3"
+                            >
+                              <MapPin size={18} color="#94a3b8" />
+                              <Text className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{n.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
                 ) : null}
               </View>
             ) : <View />}
@@ -233,7 +409,7 @@ export default function FindScreen() {
               <BalancePillShimmer isDark={isDark} />
             ) : !hideBalancePill ? (
               <TouchableOpacity 
-                onPress={() => router.push('/wallet')}
+                onPress={() => router.push('/wallet' as any)}
                 style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
                 className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
               >
@@ -317,9 +493,9 @@ export default function FindScreen() {
                     void locateUser();
                   }
                 }}
-                className={`w-12 h-12 rounded-full items-center justify-center shadow-lg border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
+                className={`w-14 h-14 rounded-full items-center justify-center shadow-lg border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
               >
-                <Target size={22} color={isDark ? '#34d399' : primary} />
+                <Target size={26} color={isDark ? '#34d399' : primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -359,20 +535,28 @@ export default function FindScreen() {
                       key={loc.id} 
                       activeOpacity={0.9}
                       onPress={() => router.push({ pathname: '/reserve', params: { id: loc.id } } as any)}
-                      className={`flex-row w-[300px] h-24 rounded-[18px] overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2' : 'border-[#064e3b]/20'} ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}
+                      className={`flex-row w-[240px] h-20 rounded-2xl overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2' : 'border-[#064e3b]/15'} ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}
                     >
-                      <Image source={{ uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop' }} className="w-24 h-full" />
-                      <View className="flex-1 p-3 justify-between">
+                      <Image 
+                        source={{ uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop' }} 
+                        className="w-20 h-full" 
+                      />
+                      <View className="flex-1 p-2.5 justify-between">
                         <View className="flex-row justify-between items-start">
-                          <Text className={`text-sm font-bold flex-1 mr-2 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} numberOfLines={1}>{loc.name}</Text>
-                          <Text className="text-sm font-black text-[#064e3b]">25<Text className="text-[10px] font-normal text-[#64748b]">/h</Text></Text>
+                          <Text 
+                            className={`text-[13px] font-bold flex-1 mr-1 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} 
+                            numberOfLines={1}
+                          >
+                            {loc.name}
+                          </Text>
+                          <Text className="text-[12px] font-black text-[#064e3b]">25<Text className="text-[9px] font-normal text-[#64748b]">/h</Text></Text>
                         </View>
                         <View className="flex-row justify-between items-center">
-                          <View className="flex-row items-center gap-1.5">
+                          <View className="flex-row items-center gap-1">
                             <View className="w-1.5 h-1.5 rounded-full bg-[#059669]" />
-                            <Text className="text-[10px] font-bold text-[#059669]">12 Slots Left</Text>
+                            <Text className="text-[9px] font-bold text-[#059669]">Available</Text>
                           </View>
-                          <ArrowRight size={16} color="#94a3b8" />
+                          <ArrowRight size={14} color="#94a3b8" />
                         </View>
                       </View>
                     </TouchableOpacity>

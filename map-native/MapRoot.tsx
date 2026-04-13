@@ -39,7 +39,7 @@ const MapRoot = ({ children }: MapRootProps) => {
       {/* STABLE v10 MapView - using standard 'styleURL' */}
       <MapLibreGL.MapView
         style={styles.map}
-        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
         logoEnabled={false}
         attributionEnabled={false}
         onRegionDidChange={onRegionDidChange}
@@ -58,6 +58,15 @@ const MapRoot = ({ children }: MapRootProps) => {
         
         {children}
       </MapLibreGL.MapView>
+
+      {/* Antique / Vintage Tint Overlay */}
+      <View 
+        pointerEvents="none" 
+        style={[
+          StyleSheet.absoluteFill, 
+          { backgroundColor: 'rgba(139, 69, 19, 0.12)', zIndex: 10 }
+        ]} 
+      />
     </View>
   );
 };
