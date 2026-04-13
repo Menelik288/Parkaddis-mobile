@@ -1,300 +1,170 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, useColorScheme, Platform, KeyboardAvoidingView } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
-import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Hash, Car, ArrowRight, AlertCircle } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function RegisterStep2Screen() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
-  const primary = '#064e3b';
   const router = useRouter();
+  const { register } = useAuth();
+  const params = useLocalSearchParams();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
+  const [plateNumber, setPlateNumber] = useState('');
+  const [carModel, setCarModel] = useState('');
   const [selectedColor, setSelectedColor] = useState('#0f172a');
-  const colors = ['#0f172a', '#f1f5f9', '#2563eb', '#dc2626', '#047857', '#f59e0b'];
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const colors = [
+    { value: '#0f172a', name: 'Dark' },
+    { value: '#f1f5f9', name: 'White' },
+    { value: '#2563eb', name: 'Blue' },
+    { value: '#dc2626', name: 'Red' },
+    { value: '#047857', name: 'Green' },
+    { value: '#f59e0b', name: 'Yellow' }
+  ];
+
+  const primary = '#064e3b';
+  const secondary = '#34d399';
+
+  const handleComplete = async () => {
+    if (!plateNumber || !carModel) {
+      setError('Please fill in vehicle details');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const registrationData = {
+        fullName: params.fullName as string,
+        email: params.email as string,
+        password: params.password as string,
+        phoneNumber: "0900000000", // Default placeholder for now
+        role: (params.role as string) || 'user',
+        car: {
+          plateNumber,
+          carModel,
+          color: colors.find(c => c.value === selectedColor)?.name || 'Black'
+        }
+      };
+
+      await register(registrationData);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView 
-        contentContainerStyle={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]} 
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.contentWrapper}>
-          
-          {/* Branding Header */}
-          <View style={styles.brandingHeader}>
-            <View style={styles.logoBoxWrapper}>
-              <View style={[styles.logoBox, { backgroundColor: primary }]}>
-                <Text style={styles.logoBoxText}>P</Text>
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+          <View className="flex-1 items-center w-full max-w-md mx-auto pt-10 pb-10">
+            {/* Branding */}
+            <View className="mb-10 items-center w-full">
+              <View className="flex-row items-center gap-2">
+                <View className="w-12 h-12 rounded-lg items-center justify-center shadow-lg" style={{ backgroundColor: primary }}>
+                  <Text className="text-white font-black text-2xl">P</Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text className="text-xl font-black tracking-tighter" style={{ color: primary }}>PARK</Text>
+                  <Text className="text-xl font-black tracking-tighter text-[#94a3b8]">ADDIS</Text>
+                </View>
               </View>
-              <View style={styles.logoTextWrapper}>
-                <Text style={[styles.logoTextPark, { color: primary }]}>PARK</Text>
-                <Text style={styles.logoTextAddis}>ADDIS</Text>
+            </View>
+
+            {/* Registration Card */}
+            <View className={`w-full rounded-3xl border overflow-hidden shadow-xl ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200/30'}`}>
+              <View className={`p-8 items-center border-b border-dashed ${isDark ? 'bg-[#022c22] border-white/30' : 'bg-[#064e3b] border-white/30'}`}>
+                <View className="flex-row gap-2 mb-4">
+                  <View className="w-12 h-1 rounded-full bg-[#6ee7b7]" />
+                  <View className="w-12 h-1 rounded-full bg-[#6ee7b7]" />
+                </View>
+                <Text className="text-white text-2xl font-extrabold">Vehicle Details</Text>
+                <Text className="text-white/70 text-[10px] font-bold uppercase tracking-widest mt-1">Step 2 of 2 • Finalizing Profile</Text>
+              </View>
+              
+              <View className="p-8 gap-6">
+                <View className="gap-2">
+                  <Text className={`text-sm font-semibold px-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Ethiopian Plate Number</Text>
+                  <View className="relative flex-row items-center">
+                    <View className="absolute left-4 z-10">
+                      <Hash size={20} color="#94a3b8" />
+                    </View>
+                    <TextInput 
+                      placeholder="AA-2-B4567"
+                      placeholderTextColor="#94a3b8"
+                      value={plateNumber}
+                      onChangeText={setPlateNumber}
+                      className={`flex-1 h-14 rounded-2xl border pl-12 pr-4 text-[15px] font-semibold ${isDark ? 'bg-[#0f172a] border-[#334155] text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+                    />
+                  </View>
+                </View>
+
+                <View className="gap-2">
+                  <Text className={`text-sm font-semibold px-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Car Model</Text>
+                  <View className="relative flex-row items-center">
+                    <View className="absolute left-4 z-10">
+                      <Car size={20} color="#94a3b8" />
+                    </View>
+                    <TextInput 
+                      placeholder="Toyota Corolla 2022"
+                      placeholderTextColor="#94a3b8"
+                      value={carModel}
+                      onChangeText={setCarModel}
+                      className={`flex-1 h-14 rounded-2xl border pl-12 pr-4 text-[15px] font-semibold ${isDark ? 'bg-[#0f172a] border-[#334155] text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+                    />
+                  </View>
+                </View>
+
+                <View className="gap-2">
+                  <Text className={`text-sm font-semibold px-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Vehicle Color</Text>
+                  <View className="flex-row gap-3 px-1">
+                    {colors.map((c, i) => (
+                      <TouchableOpacity 
+                        key={i}
+                        onPress={() => setSelectedColor(c.value)}
+                        className={`w-9 h-9 rounded-full ${selectedColor === c.value ? 'border-2 border-[#064e3b]' : ''}`}
+                        style={{ backgroundColor: c.value, borderWidth: c.value === '#f1f5f9' ? 1 : (selectedColor === c.value ? 2 : 0), borderColor: c.value === '#f1f5f9' ? '#cbd5e1' : '#064e3b' }}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {error && (
+                  <View className="bg-red-500/10 p-4 rounded-xl">
+                    <Text className="color-red-500 text-xs font-bold">{error}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                  onPress={handleComplete}
+                  disabled={loading}
+                  className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg"
+                  style={{ backgroundColor: primary }}
+                >
+                  <Text className="text-white font-extrabold text-base">{loading ? 'Finalizing...' : 'Complete Registration'}</Text>
+                  {!loading && <ArrowRight size={18} color="white" />}
+                </TouchableOpacity>
+
+                <View className="flex-row justify-center mb-4">
+                  <TouchableOpacity onPress={() => router.back()}>
+                    <Text className={`text-sm font-bold ${isDark ? 'text-[#34d399]' : ''}`} style={{ color: isDark ? '' : primary }}>Back to user info</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
-
-          {/* Registration Card */}
-          <View style={[styles.card, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : 'rgba(148,163,184,0.3)' }]}>
-            
-            <View style={[styles.cardHeader, { backgroundColor: isDark ? '#022c22' : primary }]}>
-              <View style={styles.stepIndicator}>
-                <View style={[styles.stepDot, { backgroundColor: '#6ee7b7' }]} />
-                <View style={[styles.stepDot, { backgroundColor: '#6ee7b7' }]} />
-              </View>
-              
-              <Text style={styles.cardHeaderTitle}>Vehicle Details</Text>
-              <Text style={styles.cardHeaderSubtitle}>Step 2 of 2 • Finalizing Profile</Text>
-            </View>
-            
-            <View style={styles.cardBody}>
-              
-              {/* Plate Number Field */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: isDark ? '#94a3b8' : '#334155' }]}>Ethiopian Plate Number</Text>
-                <View style={styles.inputWrapper}>
-                  <MaterialIcons name="pin" size={20} color="#94a3b8" style={styles.inputIcon} />
-                  <TextInput 
-                    style={[styles.input, { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#0f172a' }]}
-                    placeholder="AA-2-B4567"
-                    placeholderTextColor="#94a3b8"
-                  />
-                </View>
-              </View>
-
-              {/* Car Model Field */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: isDark ? '#94a3b8' : '#334155' }]}>Car Model</Text>
-                <View style={styles.inputWrapper}>
-                  <MaterialIcons name="directions-car" size={20} color="#94a3b8" style={styles.inputIcon} />
-                  <TextInput 
-                    style={[styles.input, { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#0f172a' }]}
-                    placeholder="Toyota Corolla 2022"
-                    placeholderTextColor="#94a3b8"
-                  />
-                </View>
-              </View>
-
-              {/* Car Color Selector */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: isDark ? '#94a3b8' : '#334155' }]}>Vehicle Color</Text>
-                <View style={styles.colorSelectorContainer}>
-                  {colors.map((c, i) => (
-                    <TouchableOpacity 
-                      key={i}
-                      style={[
-                        styles.colorOption,
-                        { borderColor: selectedColor === c ? primary : 'transparent', borderWidth: selectedColor === c ? 2 : 0, padding: selectedColor === c ? 2 : 0 }
-                      ]}
-                      onPress={() => setSelectedColor(c)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[
-                        styles.colorOptionInner, 
-                        { backgroundColor: c, borderWidth: c === '#f1f5f9' ? 1 : 0, borderColor: '#cbd5e1' }
-                      ]} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Complete Button */}
-              <View style={styles.submitWrapper}>
-                <TouchableOpacity style={[styles.submitButton, { backgroundColor: primary }]} onPress={() => router.push('/' as any)}>
-                  <Text style={styles.submitText}>Complete Registration</Text>
-                  <MaterialIcons name="arrow-forward" size={18} color="#ffffff" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Back Link */}
-              <View style={styles.loginWrapper}>
-                <TouchableOpacity onPress={() => router.back()}>
-                  <Text style={[styles.loginLink, { color: isDark ? '#34d399' : primary }]}>Back to user info</Text>
-                </TouchableOpacity>
-              </View>
-
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
-    paddingBottom: 40,
-  },
-  contentWrapper: {
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  brandingHeader: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  logoBoxWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#064e3b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  logoBoxText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  logoTextWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoTextPark: {
-    fontSize: 24,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: -1,
-  },
-  logoTextAddis: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    letterSpacing: -1,
-  },
-  card: {
-    width: '100%',
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  cardHeader: {
-    padding: 32,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    borderBottomColor: 'rgba(255,255,255,0.3)',
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  stepDot: {
-    width: 48,
-    height: 4,
-    borderRadius: 2,
-  },
-  cardHeaderTitle: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  cardHeaderSubtitle: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 4,
-  },
-  cardBody: {
-    padding: 32,
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    paddingHorizontal: 4,
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 10,
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingLeft: 48,
-    paddingRight: 16,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  colorSelectorContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 4,
-  },
-  colorOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorOptionInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 18,
-  },
-  submitWrapper: {
-    paddingTop: 16,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 56,
-    borderRadius: 16,
-    shadowColor: '#064e3b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  submitText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  loginWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loginLink: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

@@ -36,14 +36,31 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# Native configuration (source of truth)
-ios/
-android/
+app-example
 
-# Ignore heavy binaries and generated build artifacts
-ios/Pods/
-ios/build/
-ios/*.xcresult
-android/build/
-android/.gradle
-android/app/build/
+# generated native folders
+/ios
+/android
+
+# Bun
+.bun-build/
+bun-debug.log*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+
+# DOCS
+backend_api_docs2.md
+backend_api_docs.md
+Refining ParkAddis Reservation Interface.md
+

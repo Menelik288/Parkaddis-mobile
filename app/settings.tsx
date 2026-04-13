@@ -1,229 +1,77 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, useColorScheme, Platform } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, useColorScheme, Platform } from 'react-native';
+import { Shield, Bell, Globe, HelpCircle, Info, FileText, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { PageHeader } from '@/components/PageHeader';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
   const isDark = colorScheme === 'dark';
   const primary = '#064e3b';
-  const router = useRouter();
+  const secondary = '#34d399';
+
+  const sections = [
+    {
+      label: 'General',
+      items: [
+        { icon: Shield, title: 'Security & Privacy', subtitle: 'Password, biometrics, data', path: '/settings/security' },
+        { icon: Bell, title: 'Notifications', subtitle: 'Push, email and SMS alerts', path: '/settings/notifications' },
+        { icon: Globe, title: 'Language & Region', subtitle: 'English (US), GMT+3', path: '/settings/language' },
+      ]
+    },
+    {
+      label: 'Support & About',
+      items: [
+        { icon: HelpCircle, title: 'Help & Support', subtitle: 'FAQs, contact support', path: '/settings/help' },
+        { icon: Info, title: 'About ParkAddis', subtitle: 'Version 1.0.0', path: null },
+        { icon: FileText, title: 'Terms of Service', subtitle: 'Usage rules and legal', path: null },
+      ]
+    }
+  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
-      <View style={[styles.header, { backgroundColor: isDark ? '#020617' : '#f8fafc' }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? '#34d399' : primary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDark ? '#d1fae5' : primary }]}>Settings</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
+      <PageHeader title="Settings" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>General</Text>
-          
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="security" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Security & Privacy</Text>
-                <Text style={styles.listItemSubtitle}>Password, biometrics, data</Text>
-              </View>
+      <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
+        {sections.map((section, sIndex) => (
+          <View key={sIndex} className="mb-10">
+            <Text className="text-[10px] font-black uppercase tracking-[2px] text-[#94a3b8] px-2 mb-4">{section.label}</Text>
+            
+            <View className="gap-3">
+              {section.items.map((item, iIndex) => (
+                <TouchableOpacity 
+                  key={iIndex}
+                  onPress={() => item.path && router.push(item.path as any)}
+                  className={`flex-row items-center justify-between p-4 rounded-3xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                >
+                  <View className="flex-row items-center gap-4">
+                    <View className={`w-11 h-11 rounded-2xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]'}`}>
+                      <item.icon size={20} color={isDark ? secondary : primary} />
+                    </View>
+                    <View>
+                      <Text className={`text-sm font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{item.title}</Text>
+                      <Text className="text-[11px] text-[#94a3b8] font-medium">{item.subtitle}</Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={20} color="#cbd5e1" />
+                </TouchableOpacity>
+              ))}
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+          </View>
+        ))}
 
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="notifications" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Notifications</Text>
-                <Text style={styles.listItemSubtitle}>Push, email and SMS alerts</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="language" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Language & Region</Text>
-                <Text style={styles.listItemSubtitle}>English (US), GMT+3</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Support & About</Text>
-          
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="help" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Help & Support</Text>
-                <Text style={styles.listItemSubtitle}>FAQs, contact support</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="info" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>About ParkAddis</Text>
-                <Text style={styles.listItemSubtitle}>Version 2.4.0</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.listItem, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
-            <View style={styles.listItemLeft}>
-              <View style={[styles.listIconBox, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}>
-                <MaterialIcons name="gavel" size={20} color={isDark ? '#34d399' : primary} />
-              </View>
-              <View style={styles.listItemText}>
-                <Text style={[styles.listItemTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Terms of Service</Text>
-                <Text style={styles.listItemSubtitle}>Usage rules and legal</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footerSection}>
+        <View className="items-center gap-6 mt-4 mb-12">
           <TouchableOpacity>
-            <Text style={styles.deactivateText}>Deactivate Account</Text>
+            <Text className="text-red-500 text-xs font-bold opacity-80 uppercase tracking-widest">Deactivate Account</Text>
           </TouchableOpacity>
-          <View style={styles.footerInfo}>
-            <Text style={styles.versionText}>PARKADDIS V2.4.0</Text>
-            <Text style={styles.builtForText}>Proudly built for Addis Ababa</Text>
+          <View className="items-center">
+            <Text className="text-[10px] font-black text-[#94a3b8] tracking-widest uppercase">PARKADDIS V2.4.0</Text>
+            <Text className="text-[9px] text-[#94a3b8] opacity-50 mt-1 font-medium italic">Proudly built for Addis Ababa</Text>
           </View>
         </View>
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
-    gap: 32,
-  },
-  section: {
-    gap: 12,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#94a3b8',
-    paddingHorizontal: 8,
-    marginBottom: 4,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  listItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  listIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listItemText: {
-    gap: 2,
-  },
-  listItemTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  listItemSubtitle: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '500',
-  },
-  footerSection: {
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 16,
-  },
-  deactivateText: {
-    color: '#ef4444',
-    fontSize: 12,
-    fontWeight: '500',
-    opacity: 0.8,
-  },
-  footerInfo: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  versionText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#94a3b8',
-    letterSpacing: -0.5,
-  },
-  builtForText: {
-    fontSize: 9,
-    color: '#94a3b8',
-    opacity: 0.5,
-  },
-});

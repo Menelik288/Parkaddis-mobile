@@ -1,422 +1,390 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image, useColorScheme, Platform } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
+import { ExtendSessionModal } from '@/components/ExtendSessionModal';
+import { TicketQrModal } from '@/components/TicketQrModal';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import {
+  getDashboardSessionPriceEt,
+  getReservationDisplayPriceEt,
+  getReservationLocationLabel,
+  Reservation,
+  reservationService,
+} from '@/services/reservationService';
+import { walletService } from '@/services/walletService';
+import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
+import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
+import { Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 export default function TicketsScreen() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
-  const primary = '#064e3b';
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [balance, setBalance] = useState<string>('0.00');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'expired'>('active');
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [extendFor, setExtendFor] = useState<Reservation | null>(null);
+  const [ticketFor, setTicketFor] = useState<Reservation | null>(null);
+  const [liveCostBump, setLiveCostBump] = useState(0);
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const hasActive = reservations.some(r => r.status?.toUpperCase() === 'ACTIVE');
+    if (!hasActive) return;
+    const id = setInterval(() => setLiveCostBump(n => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, [reservations]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const wallet = await walletService.getWallet();
+      setBalance(wallet.balance);
+      const data = await reservationService.getAllUserSessions();
+      setReservations(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to fetch ticket data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = (item: Reservation) => {
+    Alert.alert(
+      "Cancel Reservation",
+      "Are you sure you want to cancel this reservation?",
+      [
+        { text: "No, keep it", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            setCancelLoading(item.id);
+            try {
+              await reservationService.cancelReservation(item.id);
+              fetchData();
+            } catch (err) {
+              Alert.alert("Error", "Could not cancel reservation.");
+            } finally {
+              setCancelLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const safeReservations = Array.isArray(reservations) ? reservations : [];
+  const filteredReservations = safeReservations.filter(r => {
+    const status = r.status?.toUpperCase();
+    if (activeTab === 'active') return status === 'ACTIVE' || status === 'RESERVED';
+    if (activeTab === 'completed') return status === 'COMPLETED' || status === 'PAID';
+    return status === 'CANCELLED' || status === 'EXPIRED';
+  });
+
+  const primary = '#064e3b';
+  const secondary = '#34d399';
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
-      {/* TopAppBar */}
-      <View style={styles.topOverlay}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.pillButton, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#fff' }]}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? '#34d399' : primary} />
-        </TouchableOpacity>
-        <View style={[styles.walletWidget, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#fff' }]}>
-          <View style={styles.walletTextContainer}>
-            <Text style={styles.walletLabel}>BALANCE</Text>
-            <Text style={[styles.walletAmount, { color: isDark ? '#34d399' : primary }]}>ETB 450.00</Text>
-          </View>
-          <View style={[styles.walletIcon, { backgroundColor: isDark ? '#34d399' : primary }]}>
-            <MaterialIcons name="account-balance-wallet" size={20} color={isDark ? '#064e3b' : "#fff"} />
+    <View className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
+      {/* Top Bar */}
+      <View className={`flex-row justify-between items-center px-6 ${Platform.OS === 'ios' ? 'pt-[68px]' : 'pt-[48px]'} pb-4 z-10 ${isDark ? 'bg-[#0f172a]/90' : 'bg-[#f8fafc]/90'}`}>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity 
+            onPress={() => setMenuVisible(!menuVisible)}
+            className="p-1"
+          >
+            <Menu size={24} color={isDark ? secondary : primary} />
+          </TouchableOpacity>
+          <View className="flex-row items-center">
+            <Text className="text-2xl font-black tracking-tighter" style={{ color: isDark ? secondary : primary }}>PARK</Text>
+            <Text className="text-2xl font-black tracking-tighter text-[#94a3b8]">ADDIS</Text>
           </View>
         </View>
+        {loading ? (
+          <BalancePillShimmer isDark={isDark} />
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push('/wallet')}
+            style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
+            className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+          >
+            <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
+              <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">BALANCE</Text>
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                className={`text-base font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+              >
+                ETB {balance}
+              </Text>
+            </View>
+            <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
+              <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Page Headline */}
-        <View style={styles.headerBox}>
-          <Text style={[styles.pageTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Your Tickets</Text>
-          <Text style={styles.pageSubtitle}>Manage your active and previous parking sessions.</Text>
+      {/* Menu Modal - Sync with Dashboard */}
+      <Modal 
+        visible={menuVisible} 
+        transparent 
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View className="flex-1 bg-black/20">
+            <TouchableWithoutFeedback>
+              <View 
+                className={`absolute top-24 left-5 w-52 rounded-2xl border shadow-xl p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+              >
+                <TouchableOpacity 
+                  className="flex-row items-center p-3 gap-3 rounded-xl"
+                  onPress={() => { setMenuVisible(false); router.push('/saved'); }}
+                >
+                  <Bookmark size={18} color={isDark ? secondary : primary} />
+                  <Text className={`font-semibold text-sm ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Saved Spots</Text>
+                </TouchableOpacity>
+                
+                <View className={`h-px w-full my-1 ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`} />
+
+                <TouchableOpacity 
+                  className="flex-row items-center p-3 gap-3 rounded-xl"
+                  onPress={() => { setMenuVisible(false); router.push('/wallet'); }}
+                >
+                  <Wallet size={18} color={isDark ? secondary : primary} />
+                  <Text className={`font-semibold text-sm ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Wallets</Text>
+                </TouchableOpacity>
+                
+                <View className={`h-px w-full my-1 ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`} />
+                
+                <TouchableOpacity 
+                  className="flex-row items-center p-3 gap-3 rounded-xl"
+                  onPress={() => { setMenuVisible(false); router.push('/settings'); }}
+                >
+                  <Settings size={18} color={isDark ? secondary : primary} />
+                  <Text className={`font-semibold text-sm ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Settings</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <ScrollView 
+        className="flex-1 px-6" 
+        contentContainerStyle={{ paddingBottom: 160 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Headline */}
+        <View className="mb-8 mt-4">
+          <Text className={`text-[32px] font-extrabold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Your Tickets</Text>
+          <Text className="text-sm text-[#64748b] mt-1">Manage your active and previous parking sessions.</Text>
         </View>
 
         {/* Filter Toggle */}
-        <View style={[styles.filterToggle, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
-          <TouchableOpacity style={[styles.filterBtnActive, { backgroundColor: isDark ? '#34d399' : primary }]}>
-            <Text style={[styles.filterBtnTextActive, { color: isDark ? '#064e3b' : '#fff' }]}>Active</Text>
+        <View className={`flex-row p-1.5 rounded-2xl mb-8 ${isDark ? 'bg-[#1e293b]' : 'bg-[#f1f5f9]'}`}>
+          <TouchableOpacity 
+            onPress={() => setActiveTab('active')}
+            className={`flex-1 py-2.5 rounded-xl items-center justify-center ${activeTab === 'active' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : ''}`}
+          >
+            <Text className={`font-bold text-xs ${activeTab === 'active' ? (isDark ? 'text-[#064e3b]' : 'text-white') : 'text-[#475569]'}`}>Active</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.filterBtnInactive}>
-            <Text style={styles.filterBtnTextInactive}>Expired</Text>
+          <TouchableOpacity 
+            onPress={() => setActiveTab('completed')}
+            className={`flex-1 py-2.5 rounded-xl items-center justify-center ${activeTab === 'completed' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : ''}`}
+          >
+            <Text className={`font-bold text-xs ${activeTab === 'completed' ? (isDark ? 'text-[#064e3b]' : 'text-white') : 'text-[#475569]'}`}>Completed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setActiveTab('expired')}
+            className={`flex-1 py-2.5 rounded-xl items-center justify-center ${activeTab === 'expired' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : ''}`}
+          >
+            <Text className={`font-bold text-xs ${activeTab === 'expired' ? (isDark ? 'text-[#064e3b]' : 'text-white') : 'text-[#475569]'}`}>Expired</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Active Session Section */}
-        <View style={styles.activeSection}>
-          <View style={[styles.activeCard, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : 'transparent', borderWidth: isDark ? 1 : 0 }]}>
-            <View style={[styles.activeCardTop, { borderBottomColor: isDark ? '#334155' : 'rgba(148,163,184,0.3)' }]}>
-              {/* Notches */}
-              <View style={[styles.notchLeft, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]} />
-              <View style={[styles.notchRight, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]} />
-              
-              <View style={styles.activeCardInfo}>
-                <View style={styles.infoRowBlock}>
-                  <Text style={styles.labelSmall}>LOCATION</Text>
-                  <Text style={[styles.locationTitle, { color: isDark ? '#34d399' : primary }]}>Addis Plaza North</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <View style={styles.detailsBlock}>
-                    <Text style={styles.labelSmall}>BAY</Text>
-                    <Text style={[styles.detailValue, { color: isDark ? '#f8fafc' : '#0f172a' }]}>A-42</Text>
-                  </View>
-                  <View style={styles.detailsBlock}>
-                    <Text style={styles.labelSmall}>STARTED</Text>
-                    <Text style={[styles.detailValue, { color: isDark ? '#f8fafc' : '#0f172a' }]}>10:45 AM</Text>
-                  </View>
-                </View>
-              </View>
-              
-              <View style={styles.ticketBtnWrapper}>
-                <TouchableOpacity style={[styles.ticketBtn, { backgroundColor: isDark ? '#34d399' : primary }]}>
-                  <MaterialIcons name="qr-code-2" size={16} color={isDark ? '#064e3b' : '#fff'} />
-                  <Text style={[styles.ticketBtnText, { color: isDark ? '#064e3b' : '#fff' }]}>TICKET</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={[styles.activeCardBottom, { backgroundColor: isDark ? 'rgba(52,211,153,0.1)' : primary }]}>
-              <View style={styles.costBox}>
-                <Text style={[styles.costLabel, { color: isDark ? '#34d399' : 'rgba(255,255,255,0.7)' }]}>CURRENT COST</Text>
-                <Text style={[styles.costAmount, { color: isDark ? '#34d399' : '#fff' }]}>250 ETB</Text>
-              </View>
-              <TouchableOpacity style={[styles.addTimeBtn, { backgroundColor: isDark ? '#34d399' : '#fff' }]}>
-                <Text style={[styles.addTimeBtnText, { color: isDark ? '#064e3b' : primary }]}>ADD TIME</Text>
-              </TouchableOpacity>
-            </View>
+        {loading ? (
+          <ActivityIndicator color={isDark ? secondary : primary} className="mt-10" />
+        ) : filteredReservations.length === 0 ? (
+          <View className="items-center py-20">
+            <Text className="text-[#94a3b8] font-medium">No {activeTab} tickets found</Text>
           </View>
-        </View>
+        ) : (
+          <View className="gap-3 mb-10">
+            {filteredReservations.map((item) => {
+              const status = item.status?.toUpperCase();
+              const isTicketStyle = status === 'ACTIVE' || status === 'RESERVED';
 
-        {/* Upcoming Reservations */}
-        <View style={styles.upcomingSection}>
-          <Text style={styles.sectionLabel}>UPCOMING RESERVATIONS</Text>
-          
-          <View style={styles.upcomingList}>
-            {/* Card 1 */}
-            <TouchableOpacity style={[styles.upcomingCard, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#e2e8f0' }]} activeOpacity={0.7}>
-              <Image source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCTZLNTdVfhdL-h_XPx22k3KwWtuJhq0H_wyZRXho3OQCpCCjoZiH7U9RlJuzy4LvB5AP78CjAr_s-dClEBDZ8men8IOPYHVx3vKzvg-GNAxHCJ5gurKsLsL72h0aKu_I9mOdorSO4tcjxzUIiqX8mpFgHDWMzl8RIumd7-ja5ksRhLK7DWb0FVdp3DbHb_dUMjmxDqVIyLo9SYf2EaGEwFGlYzp3l7n68hsJwai2MRMmSM7-Nl7pYXk7sj0p1P67LCDnm156Ye3jQ' }} style={styles.upcomingImage} />
-              <View style={styles.upcomingDetails}>
-                <View style={styles.upcomingMeta}>
-                  <View style={[styles.tagBadge, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}>
-                    <Text style={[styles.tagText, { color: isDark ? '#94a3b8' : '#475569' }]}>PREPAID</Text>
-                  </View>
-                  <Text style={styles.bookingId}>#PA-902</Text>
-                </View>
-                <Text style={[styles.upcomingTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Kazanchis Tower</Text>
-                <Text style={styles.upcomingTime}>Tomorrow, 09:00 AM</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={isDark ? '#475569' : '#cbd5e1'} />
-            </TouchableOpacity>
+              if (isTicketStyle) {
+                const isActive = item.status?.toUpperCase() === 'ACTIVE';
+                const sessionOver = isActive && dayjs().isAfter(dayjs(item.endTime));
+                const showExtend = isActive && !sessionOver;
 
-            {/* Card 2 */}
-            <TouchableOpacity style={[styles.upcomingCard, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#e2e8f0' }]} activeOpacity={0.7}>
-              <Image source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCZ0AoUoK1XSVkeBl7WTyfiBbrMP94HzOMVrKNHirQ-zxcLmv_YFdYjJrrtRqv58ejuz2POyqSvHqjy87WrQxNMabEKuRRemi_1R7SEAP5Yoely70nxsr5vyzaR2ET0IQxCtWzeQvbiyBhaH6tDJMGnPGLv4SSb06H5P1ORYERL48RTIGOGvX_3YKsJDHBDJpzZ5rVWQuQrWNvPYFbcVhIqzXFnIdsvEgd5FHrE4fZjSjDQCxF-NncKJ0Nj4fJccWgqOQCrjJjv9Ao' }} style={styles.upcomingImage} />
-              <View style={styles.upcomingDetails}>
-                <View style={styles.upcomingMeta}>
-                  <View style={[styles.tagBadge, { backgroundColor: isDark ? 'rgba(52,211,153,0.1)' : '#ecfdf5' }]}>
-                    <Text style={[styles.tagText, { color: isDark ? '#34d399' : primary }]}>VALET</Text>
+                return (
+                  <View key={item.id} className={`rounded-[32px] shadow-xl overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200'}`}>
+                    <View className={`p-6 flex-row justify-between items-start border-b border-dashed relative ${isDark ? 'border-[#334155]' : 'border-slate-200'}`}>
+                      <View className={`absolute -left-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+                      <View className={`absolute -right-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+
+                      <View className="flex-1 gap-4">
+                        <View className="gap-0.5 pr-20">
+                          <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">LOCATION</Text>
+                          <Text
+                            numberOfLines={1}
+                            className={`text-lg font-extrabold ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+                          >
+                            {getReservationLocationLabel(item)}
+                          </Text>
+                        </View>
+                        <View className="flex-row gap-8">
+                          <View className="gap-0.5">
+                            <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">STATUS</Text>
+                            <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{item.status}</Text>
+                          </View>
+                          <View className="gap-0.5">
+                            <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">DATE</Text>
+                            <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
+                              {dayjs(item.startTime).format('MMM D, HH:mm')}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        className={`flex-row items-center gap-2 py-3 px-5 rounded-xl ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                        onPress={() => {
+                          if (item.status === 'ACTIVE' && dayjs().isAfter(dayjs(item.endTime))) {
+                            router.push({ pathname: '/checkout', params: { reservationId: item.id } });
+                          } else {
+                            setTicketFor(item);
+                          }
+                        }}
+                      >
+                        <QrCode size={16} color={isDark ? '#064e3b' : 'white'} />
+                        <Text className={`font-extrabold text-[10px] tracking-widest ${isDark ? 'text-[#064e3b]' : 'text-white'}`}>
+                          TICKET
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className={`flex-row justify-between items-center gap-3 p-6 ${isDark ? 'bg-[#34d399]/10' : 'bg-[#064e3b]'}`}>
+                      <View className="flex-1 gap-0.5 min-w-0">
+                        <Text className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#34d399]' : 'text-white/70'}`}>
+                          {item.status?.toUpperCase() === 'ACTIVE' ? 'CURRENT COST' : 'ESTIMATED COST'}
+                        </Text>
+                        <Text className={`text-2xl font-black tracking-tight ${isDark ? 'text-[#34d399]' : 'text-white'}`}>
+                          {(() => {
+                            void liveCostBump;
+                            return `${getDashboardSessionPriceEt(item)} ETB`;
+                          })()}
+                        </Text>
+                      </View>
+
+                      {item.status?.toUpperCase() === 'RESERVED' && (
+                        <TouchableOpacity
+                          onPress={() => handleCancel(item)}
+                          disabled={cancelLoading === item.id}
+                          className={`py-2.5 px-5 rounded-xl shrink-0 flex-row items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
+                        >
+                          {cancelLoading === item.id ? (
+                            <ActivityIndicator size="small" color="#ef4444" />
+                          ) : (
+                            <Text className={`font-extrabold text-[10px] tracking-widest ${isDark ? 'text-red-400' : 'text-red-500'}`}>
+                              CANCEL
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                      {showExtend && (
+                        <TouchableOpacity
+                          onPress={() => setExtendFor(item)}
+                          className="py-2.5 px-5 rounded-xl shrink-0 bg-white"
+                        >
+                          <Text className="font-extrabold text-[10px] tracking-widest text-[#064e3b]">
+                            EXTEND
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
-                  <Text style={styles.bookingId}>#PA-441</Text>
-                </View>
-                <Text style={[styles.upcomingTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>Sheraton Addis</Text>
-                <Text style={styles.upcomingTime}>Oct 24, 07:30 PM</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={isDark ? '#475569' : '#cbd5e1'} />
-            </TouchableOpacity>
+                );
+              }
+
+                const isCancelled = status === 'CANCELLED' || status === 'EXPIRED';
+                const isPaid = status === 'PAID' || status === 'COMPLETED';
+
+                return (
+                  <View 
+                    key={item.id}
+                    className={`p-5 rounded-[28px] border flex-row justify-between items-center 
+                      ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9] shadow-sm'}`}
+                  >
+                    <View className="flex-row items-center gap-4 flex-1">
+                      <View className={`w-12 h-12 rounded-2xl items-center justify-center 
+                        ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}
+                      >
+                        {isPaid ? (
+                          <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+                            <CheckCircle size={16} color="#10b981" />
+                          </View>
+                        ) : isCancelled ? (
+                          <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                            <XCircle size={16} color="#ef4444" />
+                          </View>
+                        ) : (
+                          <History size={20} color={isDark ? '#94a3b8' : '#475569'} />
+                        )}
+                      </View>
+                      <View className="flex-1">
+                        <Text 
+                          numberOfLines={1}
+                          className={`text-base font-black mb-1 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}
+                        >
+                          {getReservationLocationLabel(item)}
+                        </Text>
+                        <View className="flex-row items-center gap-2">
+                          <View className={`px-2 py-0.5 rounded-lg ${isCancelled ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : isPaid ? (isDark ? 'bg-emerald-500/10' : 'bg-emerald-50') : (isDark ? 'bg-slate-500/10' : 'bg-slate-50')}`}>
+                            <Text className={`text-[8px] font-black tracking-widest uppercase ${isCancelled ? 'text-red-500' : isPaid ? 'text-emerald-500' : 'text-slate-500'}`}>
+                              {status === 'COMPLETED' ? 'PAID' : status}
+                            </Text>
+                          </View>
+                          <Text className="text-[9px] font-bold text-[#64748b]">
+                            {dayjs(item.startTime).format('MMM D, YYYY')}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View className="items-end ml-4">
+                      <Text className={`text-lg font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
+                        {getReservationDisplayPriceEt(item)} ETB
+                      </Text>
+                    </View>
+                  </View>
+              );
+            })}
           </View>
-        </View>
-
+        )}
       </ScrollView>
+
+      <ExtendSessionModal
+        visible={!!extendFor}
+        reservation={extendFor}
+        isDark={isDark}
+        onClose={() => setExtendFor(null)}
+        onSuccess={updated => {
+          setReservations(prev => prev.map(r => (r.id === updated.id ? { ...r, ...updated } : r)));
+        }}
+      />
+
+      <TicketQrModal visible={!!ticketFor} reservation={ticketFor} onClose={() => setTicketFor(null)} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  topOverlay: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 50,
-  },
-  pillButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-    borderWidth: 1,
-  },
-  walletWidget: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-    borderWidth: 1,
-    gap: 12,
-  },
-  walletTextContainer: {
-    alignItems: 'flex-start',
-  },
-  walletLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#475569',
-  },
-  walletAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  walletIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 16,
-  },
-  headerBox: {
-    marginBottom: 32,
-  },
-  pageTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  pageSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  filterToggle: {
-    flexDirection: 'row',
-    padding: 6,
-    borderRadius: 16,
-    marginBottom: 32,
-  },
-  filterBtnActive: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  filterBtnInactive: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  filterBtnTextActive: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  filterBtnTextInactive: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  activeSection: {
-    marginBottom: 40,
-  },
-  activeCard: {
-    borderRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  activeCardTop: {
-    padding: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    position: 'relative',
-  },
-  notchLeft: {
-    position: 'absolute',
-    left: -12,
-    top: '50%',
-    marginTop: -12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    zIndex: 10,
-  },
-  notchRight: {
-    position: 'absolute',
-    right: -12,
-    top: '50%',
-    marginTop: -12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    zIndex: 10,
-  },
-  activeCardInfo: {
-    flex: 1,
-    gap: 16,
-  },
-  infoRowBlock: {
-    gap: 2,
-  },
-  labelSmall: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#475569',
-  },
-  locationTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 32,
-  },
-  detailsBlock: {
-    gap: 2,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  ticketBtnWrapper: {
-    alignSelf: 'center',
-  },
-  ticketBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  ticketBtnText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  activeCardBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 24,
-  },
-  costBox: {
-    gap: 2,
-  },
-  costLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  costAmount: {
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  addTimeBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  addTimeBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  upcomingSection: {
-    gap: 16,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#475569',
-  },
-  upcomingList: {
-    gap: 12,
-  },
-  upcomingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 16,
-  },
-  upcomingImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-  },
-  upcomingDetails: {
-    flex: 1,
-  },
-  upcomingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  tagBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  bookingId: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#94a3b8',
-  },
-  upcomingTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  upcomingTime: {
-    fontSize: 11,
-    color: '#475569',
-    marginTop: 2,
-  },
-});
