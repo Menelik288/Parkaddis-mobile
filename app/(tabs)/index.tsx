@@ -1,7 +1,7 @@
 import { TicketQrModal } from '@/components/TicketQrModal';
 import { AmountLineShimmer } from '@/components/BalancePillShimmer';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   reservationService,
@@ -13,6 +13,7 @@ import {
 } from '@/services/reservationService';
 import dayjs from 'dayjs';
 import { resolveReservationDestination } from '@/lib/reservationDestination';
+import { parkingService } from '@/services/parkingService';
 import {
   ActivityIndicator,
   View,
@@ -22,17 +23,75 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ScrollView,
+  TextInput,
+  Animated,
+  Easing,
+  Keyboard,
   Platform,
   useColorScheme,
   Alert,
 } from 'react-native';
-import { Menu, Bookmark, Settings, MapPin, History, CloudOff, LayoutGrid, Wallet, User as UserIcon, Navigation as NavigationIcon, QrCode, CheckCircle, XCircle } from 'lucide-react-native';
+import { Menu, Bookmark, Settings, MapPin, History, CloudOff, Search, X, LayoutGrid, Wallet, User as UserIcon, Navigation as NavigationIcon, QrCode, CheckCircle, XCircle, Clock } from 'lucide-react-native';
+
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user, logout, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  function RecentHistoryItem({ res, isDark, onPress }: {
+    res: Reservation;
+    isDark: boolean;
+    onPress: () => void;
+  }) {
+    const status = res.status?.toUpperCase() ?? '';
+    const isCancelled = status === 'CANCELLED' || status === 'EXPIRED';
+    const isPaid = status === 'PAID' || status === 'COMPLETED';
+    return (
+      <TouchableOpacity
+        className={`p-5 rounded-[28px] border flex-row justify-between items-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9] shadow-sm'}`}
+        activeOpacity={0.7}
+        onPress={onPress}
+      >
+        <View className="flex-row items-center gap-4 flex-1">
+          <View className={`w-12 h-12 rounded-2xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
+            {isPaid ? (
+              <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+                <CheckCircle size={16} color="#10b981" />
+              </View>
+            ) : isCancelled ? (
+              <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                <XCircle size={16} color="#ef4444" />
+              </View>
+            ) : (
+              <History size={20} color={isDark ? '#94a3b8' : '#475569'} />
+            )}
+          </View>
+          <View className="flex-1">
+            <Text numberOfLines={1} className={`text-base font-black mb-1 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>
+              {getReservationLocationLabel(res, 'Addis Parking Spot')}
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <View className={`px-2 py-0.5 rounded-lg ${isCancelled ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : isPaid ? (isDark ? 'bg-emerald-500/10' : 'bg-emerald-50') : isDark ? 'bg-slate-500/10' : 'bg-slate-50'}`}>
+                <Text className={`text-[8px] font-black tracking-widest uppercase ${isCancelled ? 'text-red-500' : isPaid ? 'text-emerald-500' : 'text-slate-500'}`}>
+                  {status === 'COMPLETED' ? 'PAID' : status}
+                </Text>
+              </View>
+              <Text className="text-[9px] font-bold text-[#64748b]">
+                {dayjs(res.startTime).format('MMM D, YYYY')}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View className="items-end ml-4">
+          <Text className={`text-lg font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
+            {getReservationDisplayPriceEt(res)} ETB
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -44,6 +103,18 @@ export default function DashboardScreen() {
   const [navLoading, setNavLoading] = useState(false);
   const [ticketQrFor, setTicketQrFor] = useState<Reservation | null>(null);
   const [costMinuteBump, setCostMinuteBump] = useState(0);
+
+  // Search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{id: string; name: string; address: string; lat: number; lng: number}>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [recentSearches] = useState([
+    { id: 's1', name: 'Bole Medhane Alem', address: 'Bole, Addis Ababa', lat: 8.9958, lng: 38.7899 },
+    { id: 's2', name: 'Edna Mall', address: 'Bole, Addis Ababa', lat: 8.9984, lng: 38.7876 },
+    { id: 's3', name: 'Century Mall', address: 'Gurd Shola', lat: 9.0203, lng: 38.8139 },
+  ]);
+  const slideAnim = useRef(new Animated.Value(800)).current;
 
   const primary = '#064e3b';
   const secondary = '#34d399';
@@ -168,6 +239,54 @@ export default function DashboardScreen() {
     }
   };
 
+  const openSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearch(true);
+    slideAnim.setValue(800);
+    requestAnimationFrame(() => {
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
+    });
+  };
+
+  const closeSearch = () => {
+    Keyboard.dismiss();
+    Animated.timing(slideAnim, { toValue: 800, duration: 280, useNativeDriver: true }).start(() => {
+      setShowSearch(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    });
+  };
+
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const locs = await parkingService.getLocations(9.0052, 38.7636, 10000);
+      const filtered = (Array.isArray(locs) ? locs : []).filter(l =>
+        l.name.toLowerCase().includes(q.toLowerCase()) ||
+        (l.address ?? '').toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 8).map(l => {
+        const coords = (() => { try { const p = JSON.parse(l.geom); return Array.isArray(p) ? { lng: p[0], lat: p[1] } : null; } catch { return null; } })();
+        return { id: l.id, name: l.name, address: l.address ?? '', lat: coords?.lat ?? 9.0052, lng: coords?.lng ?? 38.7636 };
+      });
+      setSearchResults(filtered);
+    } catch { setSearchResults([]); }
+    finally { setSearchLoading(false); }
+  };
+
+  const navigateToLocation = (loc: { id?: string; name: string; lat: number; lng: number }) => {
+    closeSearch();
+    setTimeout(() => {
+      if (loc.id) {
+        router.push(`/find?locationId=${loc.id}&destName=${encodeURIComponent(loc.name)}` as any);
+      } else {
+        router.push(`/find?destLat=${loc.lat}&destLng=${loc.lng}&destName=${encodeURIComponent(loc.name)}` as any);
+      }
+    }, 320);
+  };
+
   const safeReservations = Array.isArray(reservations) ? reservations : [];
   const activeCount = safeReservations.filter(r => {
     const s = String(r.status ?? '').toUpperCase();
@@ -248,55 +367,23 @@ export default function DashboardScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
         {/* Welcome */}
-        <View className="mt-2 mb-8">
+        <View className="mt-2 mb-1">
           <Text className="text-[11px] font-bold uppercase tracking-[2px] text-[#94a3b8] mb-2">WELCOME BACK</Text>
           <Text className={`text-[28px] font-extrabold tracking-tighter ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
             {dayjs().hour() < 12 ? 'Good Morning' : dayjs().hour() < 18 ? 'Good Afternoon' : 'Good Evening'}, {user?.fullName.split(' ')[0] || 'Driver'}
           </Text>
         </View>
 
-        {/* Stats Grid */}
-        <View className="flex-row gap-4 mb-8">
-          <View className={`flex-1 p-5 rounded-3xl border aspect-square justify-between shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f8fafc]'}`}>
-            <View className={`w-12 h-12 rounded-xl items-center justify-center ${isDark ? 'bg-[#34d399]/10' : 'bg-[#d1fae5]'}`}>
-              <Bookmark size={22} color={isDark ? '#34d399' : '#064e3b'} />
-            </View>
-            <View>
-              <Text className="text-[#475569] text-[10px] font-bold uppercase tracking-wider mb-1">Active Now</Text>
-              {loading ? (
-                <View style={{ width: 60 }}><AmountLineShimmer isDark={isDark} style={{ height: 32, marginTop: 4 }} /></View>
-              ) : (
-                <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{activeCount.toString()}</Text>
-              )}
-            </View>
-          </View>
 
-          <View className={`flex-1 p-5 rounded-3xl border aspect-square justify-between shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f8fafc]'}`}>
-            <View className={`w-12 h-12 rounded-xl items-center justify-center ${isDark ? 'bg-[#334155]' : 'bg-[#e2e8f0]'}`}>
-              <History size={22} color={isDark ? '#94a3b8' : '#475569'} />
-            </View>
-            <View>
-              <Text className="text-[#475569] text-[10px] font-bold uppercase tracking-wider mb-1">Total Bookings</Text>
-              {loading ? (
-                <View style={{ width: 60 }}><AmountLineShimmer isDark={isDark} style={{ height: 32, marginTop: 4 }} /></View>
-              ) : (
-                <Text className={`text-3xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{totalCount.toString()}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Active Session OR Ready to Park */}
+        {/* Active Session OR Search Bar */}
         <View className="mb-8">
-          <View className="flex-row items-center justify-between mb-4">
+          <View className={`flex-row items-center justify-between ${activeReservation ? 'mb-4' : 'mb-1'}`}>
             <Text className={`text-2xl font-bold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>
               {activeReservation
-                ? isReservedCard
-                  ? 'Upcoming reservation'
-                  : isUnpaidCard
-                    ? 'Payment due'
-                    : 'Active Session'
-                : 'Quick Actions'}
+                ? isReservedCard ? 'Upcoming reservation'
+                : isUnpaidCard ? 'Payment due'
+                : 'Active Session'
+                : ''}
             </Text>
             {isActiveCard && (
               <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -440,36 +527,48 @@ export default function DashboardScreen() {
               </View>
             </View>
           ) : (
+            /* Ready to Park Card with Integrated Search */
             <View 
-              key="fallback-parking-view"
+              key="fallback-parking-view-v4"
               style={{
                 borderRadius: 40,
-                borderWidth: 1,
-                padding: 32,
-                alignItems: 'center',
-                backgroundColor: isDark ? 'rgba(52, 211, 153, 0.1)' : 'rgba(236, 253, 245, 0.4)',
-                borderColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(209, 250, 229, 0.3)',
+                borderWidth: 0,
+                paddingVertical: 24,
+                paddingHorizontal: 12,
+                backgroundColor: isDark ? 'rgba(52, 211, 153, 0.06)' : 'rgba(236, 253, 245, 0.5)',
+                shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 10, elevation: 1,
               }}
             >
-              <View className={`w-16 h-16 rounded-full items-center justify-center mb-5 ${isDark ? 'bg-[#34d399]/20' : 'bg-[#d1fae5]/60'}`}>
-                <MapPin size={28} color={isDark ? secondary : primary} />
-              </View>
-              <Text className={`text-2xl font-bold mb-3 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Ready to park?</Text>
-              <Text className={`text-sm text-center leading-5 mb-6 max-w-[260px] ${isDark ? 'text-[#94a3b8]' : 'text-[#475569]'}`}>
-                Find the best premium parking spots in Addis Ababa with real-time availability.
-              </Text>
-              <TouchableOpacity 
-                className={`w-full max-w-[240px] py-4 rounded-xl items-center justify-center shadow-lg ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
-                onPress={() => router.push('/find')}
+              {/* Larger, rounder Search bar */}
+              <TouchableOpacity
                 activeOpacity={0.8}
+                onPress={openSearch}
+                className={`w-full h-[68px] rounded-[32px] flex-row items-center px-7 mb-6 border ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
               >
-                <Text className={`text-sm font-bold ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Find Parking Nearby</Text>
+                <Search size={22} color={isDark ? '#34d399' : '#064e3b'} />
+                <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: '#94a3b8', marginLeft: 14 }}>Search parking...</Text>
+                <MapPin size={20} color="#94a3b8" />
               </TouchableOpacity>
+
+              <View className="items-center">
+                <View className={`w-14 h-14 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-[#34d399]/10' : 'bg-[#d1fae5]'}`}>
+                  <MapPin size={24} color={isDark ? '#34d399' : '#064e3b'} />
+                </View>
+                <Text className={`text-lg font-bold mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Ready for parking?</Text>
+                
+                <TouchableOpacity 
+                  className={`w-full max-w-[240px] py-4 rounded-xl items-center justify-center shadow-lg ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                  onPress={() => router.push('/find')}
+                  activeOpacity={0.8}
+                >
+                  <Text className={`text-sm font-bold ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Find Parking Nearby</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
 
-        {/* Recent History */}
+
         <View className="mb-6">
           <View className="flex-row justify-between items-center mb-5">
             <Text className={`text-2xl font-bold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Recent Activity</Text>
@@ -494,68 +593,116 @@ export default function DashboardScreen() {
               </View>
             ) : recentHistory.length === 0 ? (
                <Text className="text-center text-[#94a3b8] text-sm my-5 font-medium">No recent activity</Text>
-            ) : recentHistory.map((res) => {
-              const status = res.status?.toUpperCase() ?? '';
-              const isCancelled = status === 'CANCELLED' || status === 'EXPIRED';
-              const isPaid = status === 'PAID' || status === 'COMPLETED';
-
-              return (
-                <TouchableOpacity
-                  key={res.id}
-                  className={`p-5 rounded-[28px] border flex-row justify-between items-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9] shadow-sm'}`}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/tickets')}
-                >
-                  <View className="flex-row items-center gap-4 flex-1">
-                    <View
-                      className={`w-12 h-12 rounded-2xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}
-                    >
-                      {isPaid ? (
-                        <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                          <CheckCircle size={16} color="#10b981" />
-                        </View>
-                      ) : isCancelled ? (
-                        <View className={`w-7 h-7 rounded-full items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
-                          <XCircle size={16} color="#ef4444" />
-                        </View>
-                      ) : (
-                        <History size={20} color={isDark ? '#94a3b8' : '#475569'} />
-                      )}
-                    </View>
-                    <View className="flex-1">
-                      <Text
-                        numberOfLines={1}
-                        className={`text-base font-black mb-1 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}
-                      >
-                        {getReservationLocationLabel(res, 'Addis Parking Spot')}
-                      </Text>
-                      <View className="flex-row items-center gap-2">
-                        <View
-                          className={`px-2 py-0.5 rounded-lg ${isCancelled ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : isPaid ? (isDark ? 'bg-emerald-500/10' : 'bg-emerald-50') : isDark ? 'bg-slate-500/10' : 'bg-slate-50'}`}
-                        >
-                          <Text
-                            className={`text-[8px] font-black tracking-widest uppercase ${isCancelled ? 'text-red-500' : isPaid ? 'text-emerald-500' : 'text-slate-500'}`}
-                          >
-                            {status === 'COMPLETED' ? 'PAID' : status}
-                          </Text>
-                        </View>
-                        <Text className="text-[9px] font-bold text-[#64748b]">
-                          {dayjs(res.startTime).format('MMM D, YYYY')}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                  <View className="items-end ml-4">
-                    <Text className={`text-lg font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
-                      {getReservationDisplayPriceEt(res)} ETB
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            ) : recentHistory.map((res) => (
+              <RecentHistoryItem
+                key={res.id}
+                res={res}
+                isDark={isDark}
+                onPress={() => router.push('/tickets')}
+              />
+            ))}
           </View>
         </View>
       </ScrollView>
+      {/* Search Slide-Up Modal */}
+      {showSearch && (
+        <View style={{ position: 'absolute', inset: 0, zIndex: 200, justifyContent: 'flex-end' }}>
+          <TouchableWithoutFeedback onPress={closeSearch}>
+            <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+          </TouchableWithoutFeedback>
+          <Animated.View
+            style={[
+              {
+                transform: [{ translateY: slideAnim }],
+                borderTopLeftRadius: 32, borderTopRightRadius: 32,
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                paddingBottom: 40,
+                height: '80%',
+              }
+            ]}
+          >
+            {/* Handle & Close button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>
+              <View style={{ width: 40 }} />
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
+              <TouchableOpacity 
+                onPress={closeSearch}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} color={isDark ? '#94a3b8' : '#475569'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search input */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 12, paddingHorizontal: 20, height: 64, borderRadius: 28, borderWidth: 1, gap: 10, backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+              <Search size={18} color={isDark ? '#34d399' : '#064e3b'} />
+              <TextInput
+                autoFocus
+                placeholder="Search parking..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={handleSearch}
+                style={{ flex: 1, fontSize: 15, fontWeight: '600', color: isDark ? '#f8fafc' : '#0f172a' }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                  <X size={16} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* Recent or live results */}
+              {searchQuery.length === 0 ? (
+                <View style={{ paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', color: '#94a3b8', marginBottom: 12 }}>Recent Searches</Text>
+                  {recentSearches.map(s => (
+                    <TouchableOpacity
+                      key={s.id}
+                      onPress={() => navigateToLocation(s)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: isDark ? '#1e293b' : '#f1f5f9' }}
+                    >
+                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
+                        <Clock size={16} color={isDark ? '#34d399' : '#064e3b'} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#f8fafc' : '#0f172a' }}>{s.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{s.address}</Text>
+                      </View>
+                      <MapPin size={14} color="#94a3b8" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : searchLoading ? (
+                <ActivityIndicator color={isDark ? '#34d399' : '#064e3b'} style={{ marginTop: 32 }} />
+              ) : searchResults.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#94a3b8', marginTop: 32, fontWeight: '600' }}>No spots found for "{searchQuery}"</Text>
+              ) : (
+                <View style={{ paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', color: '#94a3b8', marginBottom: 12 }}>Results</Text>
+                  {searchResults.map(s => (
+                    <TouchableOpacity
+                      key={s.id}
+                      onPress={() => navigateToLocation(s)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: isDark ? '#1e293b' : '#f1f5f9' }}
+                    >
+                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? '#064e3b' : '#ecfdf5', alignItems: 'center', justifyContent: 'center' }}>
+                        <MapPin size={16} color={isDark ? '#34d399' : '#064e3b'} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#f8fafc' : '#0f172a' }}>{s.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{s.address}</Text>
+                      </View>
+                      <NavigationIcon size={14} color={isDark ? '#34d399' : '#064e3b'} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
+
 
       <TicketQrModal
         visible={!!ticketQrFor}

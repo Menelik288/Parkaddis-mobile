@@ -37,8 +37,8 @@ export default function TabLayout() {
             paddingBottom: 10,
             paddingTop: 10,
             borderTopWidth: 0,
-            backgroundColor: isDark ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.7)',
-            elevation: 10,
+            backgroundColor: 'transparent',
+            elevation: 0,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -10 },
             shadowOpacity: 0.1,
@@ -48,9 +48,14 @@ export default function TabLayout() {
             <View style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' }]}>
               <BlurView 
                 tint={isDark ? "dark" : "light"} 
-                intensity={80} 
+                intensity={100} 
                 style={StyleSheet.absoluteFill} 
               />
+              <View style={[StyleSheet.absoluteFill, { 
+                backgroundColor: isDark ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)',
+                borderTopWidth: 0.5,
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)'
+              }]} />
             </View>
           ),
           tabBarShowLabel: false,

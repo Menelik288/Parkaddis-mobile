@@ -5,10 +5,10 @@ import { MapView, type ReservationRouteContext } from '@/map-native/MapView';
 import { ParkingLocation, parkingService } from '@/services/parkingService';
 import { walletService } from '@/services/walletService';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, MapPin, RefreshCw, Search, Target, Wallet } from 'lucide-react-native';
+import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, MapPin, RefreshCw, Search, Target, Wallet, X, Clock, Navigation as NavigationIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { boundsFromLineString } from '@/map-native/lib/routeBounds';
-import { ActivityIndicator, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { getDistance } from '@/lib/navigation-utils';
 
 const NEIGHBORHOODS = [
@@ -93,7 +93,14 @@ export default function FindScreen() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [searchResults, setSearchResults] = useState(NEIGHBORHOODS);
+  const [searchResults, setSearchResults] = useState<Array<{id: string; name: string; address: string; lat: number; lng: number}>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [recentSearches] = useState([
+    { id: 's1', name: 'Bole Medhane Alem', address: 'Bole, Addis Ababa', lat: 8.9958, lng: 38.7899 },
+    { id: 's2', name: 'Edna Mall', address: 'Bole, Addis Ababa', lat: 8.9984, lng: 38.7876 },
+    { id: 's3', name: 'Century Mall', address: 'Gurd Shola', lat: 9.0203, lng: 38.8139 },
+  ]);
+  const slideAnim = React.useRef(new Animated.Value(800)).current;
 
   const distanceOptions = [
     { label: "Nearby", m: 200 },
@@ -247,59 +254,57 @@ export default function FindScreen() {
     }
   };
 
-  const handleSearch = (q: string) => {
+  const openSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearch(true);
+    slideAnim.setValue(800);
+    requestAnimationFrame(() => {
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
+    });
+  };
+
+  const closeSearch = () => {
+    Animated.timing(slideAnim, { toValue: 800, duration: 250, useNativeDriver: true }).start(() => {
+      setShowSearch(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    });
+  };
+
+  const handleSearch = async (q: string) => {
     setSearchQuery(q);
     if (!q.trim()) {
-      setSearchResults(NEIGHBORHOODS);
+      setSearchResults([]);
       return;
     }
-    const filtered = NEIGHBORHOODS.filter(n => 
-      n.name.toLowerCase().includes(q.toLowerCase())
-    );
-    setSearchResults(filtered);
-  };
-
-  const selectNeighborhood = async (n: { lat: number; lng: number; name: string }) => {
-    setShowSearch(false);
-    setSearchQuery(n.name);
-    
-    // Animate to location
-    cameraRef.current?.setCamera({
-      centerCoordinate: [n.lng, n.lat],
-      zoomLevel: 15.2,
-      animationDuration: 1500,
-      animationMode: 'flyTo',
-    });
-
-    // Fetch data at new location
-    setLoading(true);
+    setSearchLoading(true);
     try {
-      const radiusMeters = distanceOptions.find(o => o.label === selectedDistance)?.m || 1000;
-      const [locs] = await Promise.all([
-        parkingService.getLocations(n.lat, n.lng, radiusMeters)
-      ]);
-      const apiLocs = Array.isArray(locs) ? locs : [];
-      
-      const filteredLandmarks = FEATURED_LANDMARKS.map(land => {
-        const coords = JSON.parse(land.geom);
-        const dist = getDistance(n.lat, n.lng, coords[1], coords[0]);
-        return { ...land, distance: dist };
-      }).filter(land => land.distance <= radiusMeters);
-
-      const combined = [...filteredLandmarks];
-      apiLocs.forEach(loc => {
-        if (!combined.find(c => c.id === loc.id)) {
-          combined.push(loc);
-        }
+      const resp = await parkingService.getLocations(9.03584, 38.75242, 5000); // broad search
+      const list = Array.isArray(resp) ? resp : [];
+      const filtered = list.filter(l => 
+        l.name.toLowerCase().includes(q.toLowerCase()) || 
+        (l.address || '').toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 8).map(l => {
+        const coords = (() => { try { const p = JSON.parse(l.geom); return Array.isArray(p) ? { lng: p[0], lat: p[1] } : null; } catch { return null; } })();
+        return { id: l.id, name: l.name, address: l.address ?? '', lat: coords?.lat ?? 9.0052, lng: coords?.lng ?? 38.7636 };
       });
-      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-      setLocations(combined);
-    } catch (err) {
-      setError('Could not update area results');
-    } finally {
-      setLoading(false);
-    }
+      setSearchResults(filtered);
+    } catch { setSearchResults([]); }
+    finally { setSearchLoading(false); }
   };
+
+  const navigateToLocation = (loc: { id?: string; name: string; lat: number; lng: number }) => {
+    closeSearch();
+    setTimeout(() => {
+      if (loc.id) {
+        router.setParams({ locationId: loc.id, destName: loc.name });
+      } else {
+        router.setParams({ destLat: String(loc.lat), destLng: String(loc.lng), destName: loc.name });
+      }
+    }, 320);
+  };
+
 
   const safeLocations = Array.isArray(locations) ? locations : [];
 
@@ -366,40 +371,11 @@ export default function FindScreen() {
                 {!hideSearchBar ? (
                   <View className="flex-col gap-2">
                     <TouchableOpacity 
-                      onPress={() => setShowSearch(!showSearch)}
+                      onPress={openSearch}
                       className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                     >
                       <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
                     </TouchableOpacity>
-
-                    {showSearch && (
-                      <View 
-                        className={`absolute left-0 top-14 w-[280px] rounded-3xl shadow-2xl overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'}`}
-                      >
-                        <View className="p-4 border-b border-slate-100 dark:border-slate-800">
-                          <TextInput
-                            autoFocus
-                            placeholder="Search area (e.g. Bole)"
-                            placeholderTextColor="#94a3b8"
-                            className={`h-10 px-4 rounded-xl font-semibold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
-                            value={searchQuery}
-                            onChangeText={handleSearch}
-                          />
-                        </View>
-                        <ScrollView className="max-h-[240px]">
-                          {searchResults.map((n: { name: string; lat: number; lng: number }) => (
-                            <TouchableOpacity
-                              key={n.name}
-                              onPress={() => selectNeighborhood(n)}
-                              className="px-5 py-4 border-b border-slate-50 dark:border-slate-800 flex-row items-center gap-3"
-                            >
-                              <MapPin size={18} color="#94a3b8" />
-                              <Text className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{n.name}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    )}
                   </View>
                 ) : null}
               </View>
@@ -411,20 +387,20 @@ export default function FindScreen() {
               <TouchableOpacity 
                 onPress={() => router.push('/wallet' as any)}
                 style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
-                className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+                className={`flex-row items-center pl-3 pr-1 py-1.5 min-h-[44px] rounded-full border border-[#064e3b] gap-2.5 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
               >
                 <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
-                  <Text className="text-[10px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
+                  <Text className="text-[9px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
                   <Text
                     numberOfLines={1}
                     ellipsizeMode="tail"
-                    className={`text-base font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+                    className={`text-[15px] font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
                   >
                     ETB {balance}
                   </Text>
                 </View>
-                <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
-                  <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
+                <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
+                  <Wallet size={16} color={isDark ? '#064e3b' : 'white'} />
                 </View>
               </TouchableOpacity>
             ) : null}
@@ -504,30 +480,42 @@ export default function FindScreen() {
         {navigation.status === 'IDLE' && (
           <View className="absolute bottom-[115px] left-0 right-0 z-40">
             {loading ? (
-              <View className={`mx-6 h-24 rounded-[18px] flex-row items-center px-4 gap-3 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}>
-                <ActivityIndicator size="small" color={primary} />
-                <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Finding spots...</Text>
+              <View 
+                className={`mx-6 h-24 rounded-[22px] flex-row items-center px-6 gap-4 ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
+                style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}
+              >
+                <ActivityIndicator size="small" color={isDark ? '#34d399' : primary} />
+                <Text className={`text-[15px] font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Finding spots...</Text>
               </View>
             ) : error ? (
-              <View className={`mx-6 h-24 rounded-[18px] flex-row items-center px-4 gap-3 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}>
-                <AlertCircle size={24} color="#ef4444" />
-                <Text className="flex-1 text-red-500 text-sm font-bold" numberOfLines={1}>{error}</Text>
-                <TouchableOpacity onPress={fetchData} className="px-4 py-2 rounded-lg bg-[#064e3b]/10">
-                  <Text className="text-[#064e3b] font-bold">Retry</Text>
-                </TouchableOpacity>
+              <View 
+                className={`mx-6 h-24 rounded-[22px] flex-row items-center px-6 gap-4 border border-red-500/10 ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
+                style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}
+              >
+                <View className="w-10 h-10 rounded-full bg-red-500/10 items-center justify-center">
+                  <AlertCircle size={20} color="#ef4444" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-red-500 text-[13px] font-bold" numberOfLines={1}>{error}</Text>
+                  <TouchableOpacity onPress={fetchData}>
+                    <Text className="text-[#94a3b8] text-[11px] font-bold mt-0.5">TAP TO RETRY</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
                 {safeLocations.length === 0 ? (
-                  <View className={`flex-row w-[300px] h-24 rounded-[18px] p-4 items-center gap-3 border border-[#064e3b]/20 ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}>
-                    <MapPin size={24} color="#94a3b8" />
-                    <View className="flex-1">
-                      <Text className={`text-sm font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>No spots found</Text>
-                      <Text className="text-[10px] text-[#64748b]">Try increasing distance</Text>
+                  <View 
+                    className={`flex-row w-[285px] h-24 rounded-[22px] p-5 items-center gap-4 border border-[#064e3b]/10 ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
+                    style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}
+                  >
+                    <View className={`w-12 h-12 rounded-2xl items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                      <MapPin size={22} color="#94a3b8" />
                     </View>
-                    <TouchableOpacity className="w-9 h-9 border border-[#064e3b] rounded-full items-center justify-center" onPress={fetchData}>
-                      <RefreshCw size={18} color={primary} />
-                    </TouchableOpacity>
+                    <View className="flex-1">
+                      <Text className={`text-[14px] font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>No spots found</Text>
+                      <Text className="text-[11px] text-[#94a3b8] mt-0.5">Try a larger distance</Text>
+                    </View>
                   </View>
                 ) : (
                   safeLocations.map((loc) => (
@@ -535,28 +523,26 @@ export default function FindScreen() {
                       key={loc.id} 
                       activeOpacity={0.9}
                       onPress={() => router.push({ pathname: '/reserve', params: { id: loc.id } } as any)}
-                      className={`flex-row w-[240px] h-20 rounded-2xl overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2' : 'border-[#064e3b]/15'} ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}
+                      className={`flex-row w-[285px] h-24 rounded-[22px] overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2 shadow-2xl' : 'border-[#064e3b]/10'} ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
+                      style={{ shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 }}
                     >
-                      <Image 
-                        source={{ uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop' }} 
-                        className="w-20 h-full" 
-                      />
-                      <View className="flex-1 p-2.5 justify-between">
-                        <View className="flex-row justify-between items-start">
-                          <Text 
-                            className={`text-[13px] font-bold flex-1 mr-1 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} 
-                            numberOfLines={1}
-                          >
-                            {loc.name}
-                          </Text>
-                          <Text className="text-[12px] font-black text-[#064e3b]">25<Text className="text-[9px] font-normal text-[#64748b]">/h</Text></Text>
+                      <View className="p-2">
+                        <Image 
+                          source={{ uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop' }} 
+                          className="w-20 h-full rounded-[14px]" 
+                        />
+                      </View>
+                      <View className="flex-1 py-3 pr-4 justify-between">
+                        <View>
+                          <Text className={`text-[15px] font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`} numberOfLines={1}>{loc.name}</Text>
+                          <Text className="text-[11px] text-[#94a3b8]">Open 24/7 • Secure</Text>
                         </View>
                         <View className="flex-row justify-between items-center">
-                          <View className="flex-row items-center gap-1">
-                            <View className="w-1.5 h-1.5 rounded-full bg-[#059669]" />
-                            <Text className="text-[9px] font-bold text-[#059669]">Available</Text>
+                          <View className="flex-row items-center gap-1.5">
+                            <View className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                            <Text className="text-[10px] font-extrabold text-[#10b981] uppercase tracking-wider">Available</Text>
                           </View>
-                          <ArrowRight size={14} color="#94a3b8" />
+                          <Text className={`text-[13px] font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>ETB 25<Text className="text-[10px] font-normal text-[#94a3b8]">/hr</Text></Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -566,7 +552,112 @@ export default function FindScreen() {
             )}
           </View>
         )}
-      </View>
+      {/* Search Slide-Up Modal */}
+      {showSearch && (
+        <View style={{ position: 'absolute', inset: 0, zIndex: 200, justifyContent: 'flex-end' }}>
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={closeSearch}
+            style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} 
+          />
+          <Animated.View
+            style={[
+              {
+                transform: [{ translateY: slideAnim }],
+                borderTopLeftRadius: 32, borderTopRightRadius: 32,
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                paddingBottom: 40,
+                height: '80%',
+              }
+            ]}
+          >
+            {/* Handle & Close button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>
+              <View style={{ width: 40 }} />
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
+              <TouchableOpacity 
+                onPress={closeSearch}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} color={isDark ? '#94a3b8' : '#475569'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search input */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 12, paddingHorizontal: 20, height: 64, borderRadius: 28, borderWidth: 1, gap: 10, backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+              <Search size={18} color={isDark ? '#34d399' : '#064e3b'} />
+              <TextInput
+                autoFocus
+                placeholder="Search parking..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={handleSearch}
+                style={{ flex: 1, fontSize: 16, fontWeight: '600', color: isDark ? '#f8fafc' : '#0f172a' }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                  <X size={16} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* Recent or live results */}
+              {searchQuery.length === 0 ? (
+                <View style={{ paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', color: '#94a3b8', marginBottom: 12 }}>Recent Searches</Text>
+                  {recentSearches.map(s => (
+                    <TouchableOpacity
+                      key={s.id}
+                      onPress={() => navigateToLocation(s)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: isDark ? '#1e293b' : '#f1f5f9' }}
+                    >
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#1e293b' : '#f8fafc', alignItems: 'center', justifyContent: 'center' }}>
+                        <Clock size={16} color="#94a3b8" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: isDark ? '#f8fafc' : '#0f172a' }}>{s.name}</Text>
+                        <Text style={{ fontSize: 12, color: '#94a3b8' }}>{s.address}</Text>
+                      </View>
+                      <NavigationIcon size={14} color="#94a3b8" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={{ paddingHorizontal: 20 }}>
+                  {searchLoading ? (
+                    <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                      <ActivityIndicator size="small" color={isDark ? '#34d399' : '#064e3b'} />
+                    </View>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map(result => (
+                      <TouchableOpacity
+                        key={result.id}
+                        onPress={() => navigateToLocation(result)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: isDark ? '#1e293b' : '#f1f5f9' }}
+                      >
+                        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? 'rgba(52, 211, 153, 0.1)' : 'rgba(6, 78, 59, 0.05)', alignItems: 'center', justifyContent: 'center' }}>
+                          <MapPin size={18} color={isDark ? '#34d399' : '#064e3b'} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 15, fontWeight: '600', color: isDark ? '#f8fafc' : '#0f172a' }}>{result.name}</Text>
+                          <Text style={{ fontSize: 12, color: '#94a3b8' }}>{result.address}</Text>
+                        </View>
+                        <ArrowRight size={14} color="#94a3b8" />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                      <Text style={{ color: '#94a3b8', fontSize: 14 }}>No locations found for "{searchQuery}"</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
     </View>
-  );
+  </View>
+);
 }

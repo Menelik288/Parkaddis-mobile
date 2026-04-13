@@ -113,20 +113,20 @@ export default function TicketsScreen() {
           <TouchableOpacity
             onPress={() => router.push('/wallet')}
             style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
-            className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+            className={`flex-row items-center pl-3 pr-1 py-1.5 min-h-[44px] rounded-full border border-[#064e3b] gap-2.5 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
           >
             <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
-              <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">BALANCE</Text>
+              <Text className="text-[9px] font-bold uppercase tracking-wider text-[#475569]">BALANCE</Text>
               <Text
                 numberOfLines={1}
                 ellipsizeMode="tail"
-                className={`text-base font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+                className={`text-[15px] font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
               >
                 ETB {balance}
               </Text>
             </View>
-            <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
-              <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
+            <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
+              <Wallet size={16} color={isDark ? '#064e3b' : 'white'} />
             </View>
           </TouchableOpacity>
         )}

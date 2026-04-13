@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import dayjs from 'dayjs';
 import {
   View,
   Text,
@@ -11,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Alert,
   Easing,
+  StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,21 +21,48 @@ import {
   Plus, 
   ArrowUpRight, 
   ArrowDownLeft, 
-  History, 
-  CreditCard, 
-  ChevronRight,
+  History,
   CheckCircle2,
   X,
   ArrowRight,
-  RefreshCw,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { PageHeader } from '@/components/PageHeader';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { walletService, Wallet, Transaction } from '@/services/walletService';
+import { useAuth } from '@/context/AuthContext';
 
 const SHIMMER_BAND = 140;
+const CARD_ACCENT = '#34d399';
+
+function formatAccountNo(walletId: string): string {
+  const digits = walletId.replace(/[^0-9]/g, '');
+  const p1 = digits.slice(0, 4).padStart(4, '0');
+  const p2 = digits.slice(4, 8).padStart(4, '0');
+  return `PA-${p1}-${p2}`;
+}
+
+function DotGrid() {
+  const dots: React.ReactElement[] = [];
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 32; c++) {
+      dots.push(
+        <View
+          key={`${r}-${c}`}
+          style={{ width: 2, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.13)', margin: 5 }}
+        />
+      );
+    }
+  }
+  return (
+    <View style={[StyleSheet.absoluteFillObject, { flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' }]} pointerEvents="none">
+      {dots}
+    </View>
+  );
+}
 
 function WalletBalanceShimmer() {
   const translateX = useRef(new Animated.Value(-SHIMMER_BAND)).current;
@@ -64,7 +93,7 @@ function WalletBalanceShimmer() {
         style={{
           overflow: 'hidden',
           backgroundColor: 'rgba(255,255,255,0.14)',
-          width: 268,
+          width: 130,
           height: 46,
           borderRadius: 12,
         }}
@@ -97,6 +126,7 @@ export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { user } = useAuth();
   
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [history, setHistory] = useState<Transaction[]>([]);
@@ -111,7 +141,6 @@ export default function WalletScreen() {
   const slideAnim = useRef(new Animated.Value(800)).current;
 
   const primary = '#064e3b';
-  const secondary = '#34d399';
 
   useEffect(() => {
     WebBrowser.maybeCompleteAuthSession();
@@ -194,60 +223,114 @@ export default function WalletScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} edges={['bottom', 'left', 'right']}>
       <PageHeader title="Wallet" />
-
       <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
-        {/* Wallet Card */}
-        <View className="mt-4 p-8 rounded-[40px] shadow-2xl relative overflow-hidden bg-[#064e3b]">
-          <View className="relative z-10">
-            <View className="flex-row justify-between items-start mb-2">
-              <Text className="text-white text-[11px] font-bold uppercase tracking-widest">PARK ADDIS WALLET</Text>
-              <WalletIcon size={36} color="rgba(255,255,255,0.2)" />
-            </View>
-            
+        {/* === WALLET CARD === */}
+        <View
+          style={{
+            marginTop: 16,
+            borderRadius: 24,
+            overflow: 'hidden',
+            backgroundColor: isDark ? '#0a6648' : '#064e3b',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: isDark ? 0.5 : 0.18,
+            shadowRadius: 24,
+            elevation: 12,
+          }}
+        >
+          <DotGrid />
+          {/* Wallet icon — absolutely placed relative to the card itself */}
+          <View style={{ position: 'absolute', top: 24, right: 24, width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <WalletIcon size={24} color="white" />
+          </View>
+          <View style={{ padding: 28, paddingBottom: 24 }}>
+
+            {/* Label */}
+            <Text style={{ color: CARD_ACCENT, fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+              PARKADDIS WALLET
+            </Text>
+
+            {/* Balance — right below the label */}
             {loading ? (
               <WalletBalanceShimmer />
             ) : (
-              <View className="flex-row items-baseline gap-2 mb-12">
-                <Text className="text-[40px] font-bold text-white tracking-tight">
-                  ETB {wallet ? parseFloat(wallet.balance).toFixed(2) : '—'}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 40 }}>
+                <Text style={{ color: CARD_ACCENT, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>ETB</Text>
+                <Text style={{ color: 'white', fontSize: 38, fontWeight: '800', lineHeight: 44, letterSpacing: -1 }}>
+                  {wallet ? parseFloat(wallet.balance).toFixed(2) : '—'}
                 </Text>
               </View>
             )}
-            
-            <View className="border-t border-dashed border-white/20 mb-8 w-full" />
-            
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[#d1fae5] text-lg font-medium opacity-80">Active Balance</Text>
-              <TouchableOpacity 
+
+            {/* Footer: card holder + top-up */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <View>
+                <Text style={{ color: CARD_ACCENT, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>
+                  CARD HOLDER
+                </Text>
+                <Text style={{ color: 'white', fontSize: 15, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                  {user?.fullName?.toUpperCase() ?? '—'}
+                </Text>
+              </View>
+              <TouchableOpacity
                 onPress={openTopUp}
-                className="flex-row items-center gap-2 px-6 py-3.5 rounded-2xl bg-[#2d5a4c] shadow-lg"
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  paddingHorizontal: 20, paddingVertical: 12,
+                  borderRadius: 16,
+                  backgroundColor: '#2d5a4c',
+                }}
               >
-                <Plus size={18} color="white" />
-                <Text className="text-white font-bold text-sm">Top Up</Text>
+                <Plus size={16} color="white" />
+                <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>Top Up</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        {/* Quick Stats */}
-        <View className="flex-row gap-4 mt-8">
-          <View className={`flex-1 p-4 rounded-2xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}>
-            <View className="flex-row items-center gap-2 mb-2">
-              <View className="w-8 h-8 rounded-lg bg-[#ecfdf5] items-center justify-center">
-                <ArrowDownLeft size={16} color="#34d399" />
+        {/* Minimalist Compact Parking Spend Card */}
+        <View 
+          className="mt-5"
+          style={{
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.04,
+            shadowRadius: 8,
+            elevation: 2,
+          }}
+        >
+          {/* Header & Month Row */}
+          <View className="flex-row justify-between items-center mb-3">
+            <View className="flex-row items-center gap-2">
+              <View className={`w-6 h-6 rounded-lg items-center justify-center ${isDark ? 'bg-[#34d399]/10' : 'bg-[#ecfdf5]'}`}>
+                <ArrowUpRight size={12} color={isDark ? '#34d399' : '#064e3b'} />
               </View>
-              <Text className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">Income</Text>
+              <Text className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest">Parking Spend</Text>
             </View>
-            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>ETB 1,250</Text>
+            <View className={`px-2 py-0.5 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <Text className={`text-[8px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                {dayjs().format('MMMM')}
+              </Text>
+            </View>
           </View>
-          <View className={`flex-1 p-4 rounded-2xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}>
-            <View className="flex-row items-center gap-2 mb-2">
-              <View className="w-8 h-8 rounded-lg bg-red-500/10 items-center justify-center">
-                <ArrowUpRight size={16} color="#ef4444" />
+
+          {/* Amount & Trend Row (Horizontal) */}
+          <View className="flex-row justify-between items-center">
+            <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>
+              ETB 450.00
+            </Text>
+            
+            <View className="flex-row items-center gap-2">
+              <View className="flex-row items-center px-1.5 py-0.5 rounded-md bg-red-500/10 gap-1">
+                <TrendingUp size={10} color="#ef4444" />
+                <Text className="text-[9px] font-bold text-red-500">+12%</Text>
               </View>
-              <Text className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">Spent</Text>
+              <Text className="text-[9px] font-medium text-[#94a3b8]">vs last month</Text>
             </View>
-            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>ETB 800</Text>
           </View>
         </View>
 
@@ -265,7 +348,7 @@ export default function WalletScreen() {
 
           <View className="gap-4">
             {loading ? (
-              <ActivityIndicator color={isDark ? secondary : primary} className="my-8" />
+              <ActivityIndicator color={isDark ? CARD_ACCENT : primary} className="my-8" />
             ) : history.length > 0 ? (
               history.map((tx) => (
                 <View 

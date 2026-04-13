@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Wallet } from 'lucide-react-native';
 
 /** Default pill width (Find / Tickets). Override with `width` or `style`. */
-export const BALANCE_PILL_DEFAULT_WIDTH = 158;
+export const BALANCE_PILL_DEFAULT_WIDTH = 134;
 
 const BAND = 100;
 
@@ -57,7 +57,7 @@ export function AmountLineShimmer({ isDark, style }: { isDark: boolean; style?: 
       style={[
         {
           marginTop: 4,
-          height: 20,
+          height: 16,
           alignSelf: 'stretch',
           borderRadius: 8,
           overflow: 'hidden',
@@ -111,7 +111,7 @@ function resolveOuterWidth(
 export function BalancePillShimmer({ isDark, width, style }: BalancePillShimmerProps) {
   return (
     <View
-      className="flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3"
+      className="flex-row items-center pl-3 pr-1 py-1.5 min-h-[44px] rounded-full border border-[#064e3b] gap-2.5"
       style={[
         {
           backgroundColor: isDark ? '#1e293b' : '#ffffff',
@@ -121,11 +121,11 @@ export function BalancePillShimmer({ isDark, width, style }: BalancePillShimmerP
       ]}
     >
       <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
-        <Text className="text-[10px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
+        <Text className="text-[9px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
         <AmountLineShimmer isDark={isDark} />
       </View>
-      <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
-        <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
+      <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
+        <Wallet size={16} color={isDark ? '#064e3b' : 'white'} />
       </View>
     </View>
   );
