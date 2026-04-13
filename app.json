@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.bi9ears.Parkaddis",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",
         "NSMotionUsageDescription": "Allows the map to rotate according to your device orientation."
       }
     },
@@ -58,6 +59,13 @@
         "@maplibre/maplibre-react-native",
         {
           "locationWhenInUsePermission": "Show current location on map"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ParkAddis needs your location to find nearby parking spots.",
+          "isAndroidBackgroundLocationEnabled": false
         }
       ]
     ],

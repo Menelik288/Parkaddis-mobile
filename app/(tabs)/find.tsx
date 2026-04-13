@@ -1,69 +1,8 @@
-import { BALANCE_PILL_DEFAULT_WIDTH, BalancePillShimmer } from '@/components/BalancePillShimmer';
-import { useAuth } from '@/context/AuthContext';
-import { useMap } from '@/map-native/MapProvider';
-import { MapView, type ReservationRouteContext } from '@/map-native/MapView';
-import { ParkingLocation, parkingService } from '@/services/parkingService';
-import { walletService } from '@/services/walletService';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, MapPin, RefreshCw, Search, Target, Wallet } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { boundsFromLineString } from '@/map-native/lib/routeBounds';
-import { ActivityIndicator, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
-import { getDistance } from '@/lib/navigation-utils';
-
-const NEIGHBORHOODS = [
-  { name: 'Bole', lat: 8.9958, lng: 38.7891 },
-  { name: 'Kazanchis', lat: 9.0205, lng: 38.7656 },
-  { name: 'Piazza', lat: 9.0358, lng: 38.7512 },
-  { name: 'Piassa', lat: 9.0358, lng: 38.7512 },
-  { name: '4 Kilo', lat: 9.0375, lng: 38.7619 },
-  { name: 'Sarbet', lat: 8.9950, lng: 38.7369 },
-  { name: '22 Mazoria', lat: 9.0145, lng: 38.7825 },
-  { name: 'Megenagna', lat: 9.0182, lng: 38.8021 },
-  { name: 'Lebu', lat: 8.9554, lng: 38.7107 },
-  { name: 'Jemo', lat: 8.9667, lng: 38.6833 },
-];
-
-const RADIUS_ZOOM_MAP: Record<string, number> = {
-  'Nearby': 17.5,
-  '500m': 16.2,
-  '1km': 15.2,
-  '3km': 14.2,
-  'Popular': 12.5,
-};
-
-const FEATURED_LANDMARKS: ParkingLocation[] = [
-  {
-    id: 'l-medhane-alem',
-    name: 'Bole Medhane Alem',
-    address: 'Bole, Addis Ababa',
-    geom: JSON.stringify([38.7899, 8.9958]),
-  },
-  {
-    id: 'l-bora-park',
-    name: 'Bora Amusement Park',
-    address: 'Off Bole Road',
-    geom: JSON.stringify([38.7956, 8.9906]),
-  },
-  {
-    id: 'l-century-mall',
-    name: 'Century Mall',
-    address: 'Gurd Shola',
-    geom: JSON.stringify([38.8139, 9.0203]),
-  },
-  {
-    id: 'l-edna-mall',
-    name: 'Edna Mall',
-    address: 'Bole, Addis Ababa',
-    geom: JSON.stringify([38.7876, 8.9984]),
-  },
-  {
-    id: 'l-kazanchis',
-    name: 'Kazanchis Central',
-    address: 'Kazanchis Area',
-    geom: JSON.stringify([38.7656, 9.0205]),
-  },
-];
+import { Colors } from '@/constants/theme';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Camera, Map, UserLocation } from '@maplibre/maplibre-react-native';
+import { useRouter } from 'expo-router';
+import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 
 export default function FindScreen() {
   const colorScheme = useColorScheme();
@@ -71,502 +10,464 @@ export default function FindScreen() {
   const primary = '#064e3b';
   const secondary = '#059669';
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    destLat?: string;
-    destLng?: string;
-    destName?: string;
-    locationId?: string;
-  }>();
-  const { user } = useAuth();
-  const { actions, navigation, locateUser, cameraRef } = useMap();
-
-  const [reservationRouteContext, setReservationRouteContext] = useState<ReservationRouteContext>(null);
-
-  const [locations, setLocations] = useState<ParkingLocation[]>([]);
-  const [balance, setBalance] = useState<string>('0.00');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<ParkingLocation | null>(null);
-  
-  const [selectedDistance, setSelectedDistance] = useState("Nearby");
-  const [showDistanceDropdown, setShowDistanceDropdown] = useState(false);
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchResults, setSearchResults] = useState(NEIGHBORHOODS);
-
-  const distanceOptions = [
-    { label: "Nearby", m: 200 },
-    { label: "500m", m: 500 },
-    { label: "1km", m: 1000 },
-    { label: "3km", m: 3000 },
-    { label: "Popular", m: 10000 },
-  ];
-
-  const hideTopControls = useMemo(
-    () =>
-      selectedLocation != null ||
-      navigation.status === 'PREVIEW' ||
-      navigation.status === 'NAVIGATING' ||
-      navigation.status === 'ARRIVED',
-    [selectedLocation, navigation.status]
-  );
-
-  const hideBalancePill = hideTopControls;
-
-  const hideSearchBar = navigation.status === 'NAVIGATING' || navigation.status === 'ARRIVED';
-
-  // Round coordinates to 2 decimal places (approx 1.1km grid) to prevent continuous re-fetching on minor GPS drift
-  const userGridLat = navigation.userCoords ? Math.round(navigation.userCoords.lat * 100) / 100 : null;
-  const userGridLng = navigation.userCoords ? Math.round(navigation.userCoords.lng * 100) / 100 : null;
-
-  useEffect(() => {
-    fetchData();
-  }, [selectedDistance, userGridLat, userGridLng]);
-
-  const clearReservationNavParams = useCallback(() => {
-    router.setParams({
-      destLat: undefined,
-      destLng: undefined,
-      destName: undefined,
-      locationId: undefined,
-    } as any);
-  }, [router]);
-
-  const handleDismissReservationRoute = useCallback(() => {
-    setSelectedLocation(null);
-    setReservationRouteContext(null);
-    actions.clearNavigation();
-    clearReservationNavParams();
-  }, [actions, clearReservationNavParams]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const lat = params.destLat ? parseFloat(String(params.destLat)) : NaN;
-    const lng = params.destLng ? parseFloat(String(params.destLng)) : NaN;
-
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      const title = params.destName ? String(params.destName) : 'Parking';
-      setReservationRouteContext({ title, address: '' });
-      timeoutId = setTimeout(() => {
-        if (!cancelled) actions.previewDestination({ lat, lng });
-      }, 450);
-      return () => {
-        cancelled = true;
-        if (timeoutId) clearTimeout(timeoutId);
-      };
-    }
-
-    if (params.locationId) {
-      (async () => {
-        try {
-          const details = await parkingService.getLocationDetails(String(params.locationId));
-          if (cancelled) return;
-          const parsed = JSON.parse(details.location.geom);
-          if (Array.isArray(parsed) && parsed.length >= 2) {
-            const destLng = Number(parsed[0]);
-            const destLat = Number(parsed[1]);
-            if (!Number.isFinite(destLat) || !Number.isFinite(destLng)) return;
-            setReservationRouteContext({
-              title: details.location.name,
-              address: details.location.address || '',
-            });
-            timeoutId = setTimeout(() => {
-              if (!cancelled) actions.previewDestination({ lat: destLat, lng: destLng });
-            }, 450);
-          }
-        } catch {
-          /* ignore */
-        }
-      })();
-      return () => {
-        cancelled = true;
-        if (timeoutId) clearTimeout(timeoutId);
-      };
-    }
-
-    return undefined;
-  }, [params.destLat, params.destLng, params.destName, params.locationId, actions]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const radiusMeters = distanceOptions.find(o => o.label === selectedDistance)?.m || 1000;
-      
-      // Use REAL user coordinates if available, fallback to default center
-      const searchLat = navigation.userCoords?.lat || 9.03584; 
-      const searchLng = navigation.userCoords?.lng || 38.75242;
-
-      const [locs, wallet] = await Promise.all([
-        parkingService.getLocations(searchLat, searchLng, radiusMeters),
-        walletService.getWallet()
-      ]);
-      
-      const apiLocs = Array.isArray(locs) ? locs : [];
-      
-      // Calculate distances for featured landmarks and filter them
-      const filteredLandmarks = FEATURED_LANDMARKS.map(land => {
-        const coords = JSON.parse(land.geom);
-        const dist = getDistance(searchLat, searchLng, coords[1], coords[0]);
-        return { ...land, distance: dist };
-      }).filter(land => land.distance <= radiusMeters);
-
-      // Combine and deduplicate
-      const combined = [...filteredLandmarks];
-      apiLocs.forEach(loc => {
-        if (!combined.find(c => c.id === loc.id)) {
-          combined.push(loc);
-        }
-      });
-
-      // Sort by distance
-      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-
-      setLocations(combined);
-      setBalance(wallet.balance);
-
-      // Trigger map animation
-      const targetZoom = RADIUS_ZOOM_MAP[selectedDistance] || 15.2;
-      cameraRef.current?.setCamera({
-        centerCoordinate: [searchLng, searchLat],
-        zoomLevel: targetZoom,
-        animationDuration: 1200,
-        animationMode: 'flyTo',
-      });
-      // Removed auto-select to prevent map "fighting" and infinite loops
-      // if (Array.isArray(locs) && locs.length > 0) setSelectedLocation(locs[0]);
-    } catch (err) {
-      console.error('Failed to fetch find data', err);
-      setError('Could not load parking data');
-      setLocations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (q: string) => {
-    setSearchQuery(q);
-    if (!q.trim()) {
-      setSearchResults(NEIGHBORHOODS);
-      return;
-    }
-    const filtered = NEIGHBORHOODS.filter(n => 
-      n.name.toLowerCase().includes(q.toLowerCase())
-    );
-    setSearchResults(filtered);
-  };
-
-  const selectNeighborhood = async (n: { lat: number; lng: number; name: string }) => {
-    setShowSearch(false);
-    setSearchQuery(n.name);
-    
-    // Animate to location
-    cameraRef.current?.setCamera({
-      centerCoordinate: [n.lng, n.lat],
-      zoomLevel: 15.2,
-      animationDuration: 1500,
-      animationMode: 'flyTo',
-    });
-
-    // Fetch data at new location
-    setLoading(true);
-    try {
-      const radiusMeters = distanceOptions.find(o => o.label === selectedDistance)?.m || 1000;
-      const [locs] = await Promise.all([
-        parkingService.getLocations(n.lat, n.lng, radiusMeters)
-      ]);
-      const apiLocs = Array.isArray(locs) ? locs : [];
-      
-      const filteredLandmarks = FEATURED_LANDMARKS.map(land => {
-        const coords = JSON.parse(land.geom);
-        const dist = getDistance(n.lat, n.lng, coords[1], coords[0]);
-        return { ...land, distance: dist };
-      }).filter(land => land.distance <= radiusMeters);
-
-      const combined = [...filteredLandmarks];
-      apiLocs.forEach(loc => {
-        if (!combined.find(c => c.id === loc.id)) {
-          combined.push(loc);
-        }
-      });
-      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-      setLocations(combined);
-    } catch (err) {
-      setError('Could not update area results');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const safeLocations = Array.isArray(locations) ? locations : [];
-
-  const geoJsonFeatures = useMemo(() => {
-    return safeLocations.map(loc => {
-      let coordinates: [number, number] = [38.763611, 9.005401];
-      try {
-        const parsed = JSON.parse(loc.geom);
-        if (Array.isArray(parsed) && parsed.length === 2) {
-          coordinates = [parsed[0], parsed[1]];
-        }
-      } catch (e) {
-        console.warn(`Failed to parse geometry for location ${loc.id}:`, loc.geom);
-      }
-
-      return {
-        type: 'Feature',
-        id: loc.id,
-        properties: {
-          id: loc.id,
-          name: loc.name,
-          address: loc.address,
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: coordinates
-        }
-      };
-    });
-  }, [safeLocations]);
-
-  const handleMapLocationClick = (id: string | null) => {
-    if (!id) {
-      setSelectedLocation(null);
-      return;
-    }
-    const loc = safeLocations.find(l => l.id === id);
-    if (loc) setSelectedLocation(loc);
-  };
 
   return (
-    <View className="flex-1">
-      <View className="flex-1 relative bg-slate-300">
-        <MapView
-          displayedLocations={geoJsonFeatures}
-          onLocationClick={handleMapLocationClick}
-          selectedLocation={geoJsonFeatures.find(f => f.id === selectedLocation?.id)}
-          reservationRouteContext={reservationRouteContext}
-          onDismissReservationRoute={handleDismissReservationRoute}
-        />
+    <View style={styles.container}>
+      {/* Main Content (Map & Overlay) */}
+      <View style={styles.mapContainer}>
+        {/* MapLibreGL Map component */}
+        <Map
+          style={StyleSheet.absoluteFillObject}
+          logo={false}
+          attribution={false}
+          mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        >
+          <Camera
+            zoom={14}
+            center={[38.763611, 9.005401]} // Addis Ababa, Ethiopia
+          />
+          <UserLocation />
+        </Map>
 
         {/* Top Navigation Overlay */}
-        <View className={`absolute left-6 right-6 z-50 ${Platform.OS === 'ios' ? 'top-[68px]' : 'top-[48px]'}`}>
-          <View className="flex-row justify-between items-start">
-            {!hideTopControls ? (
-              <View className="flex-col gap-2">
-                <TouchableOpacity 
-                  onPress={() => router.back()} 
-                  className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
-                >
-                  <ArrowLeft size={24} color={isDark ? '#34d399' : '#064e3b'} />
-                </TouchableOpacity>
-
-                {!hideSearchBar ? (
-                  <View className="flex-col gap-2">
-                    <TouchableOpacity 
-                      onPress={() => setShowSearch(!showSearch)}
-                      className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
-                    >
-                      <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
-                    </TouchableOpacity>
-
-                    {showSearch && (
-                      <View 
-                        className={`absolute left-0 top-14 w-[280px] rounded-3xl shadow-2xl overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'}`}
-                      >
-                        <View className="p-4 border-b border-slate-100 dark:border-slate-800">
-                          <TextInput
-                            autoFocus
-                            placeholder="Search area (e.g. Bole)"
-                            placeholderTextColor="#94a3b8"
-                            className={`h-10 px-4 rounded-xl font-semibold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
-                            value={searchQuery}
-                            onChangeText={handleSearch}
-                          />
-                        </View>
-                        <ScrollView className="max-h-[240px]">
-                          {searchResults.map((n) => (
-                            <TouchableOpacity 
-                              key={n.name}
-                              onPress={() => selectNeighborhood(n)}
-                              className="px-5 py-4 border-b border-slate-50 dark:border-slate-800 flex-row items-center gap-3"
-                            >
-                              <MapPin size={18} color="#94a3b8" />
-                              <Text className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{n.name}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </View>
-                ) : null}
-              </View>
-            ) : <View />}
-
-            {!hideBalancePill && loading ? (
-              <BalancePillShimmer isDark={isDark} />
-            ) : !hideBalancePill ? (
-              <TouchableOpacity 
-                onPress={() => router.push('/wallet' as any)}
-                style={{ width: BALANCE_PILL_DEFAULT_WIDTH }}
-                className={`flex-row items-center pl-4 pr-1.5 py-2.5 min-h-[52px] rounded-full border border-[#064e3b] gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
-              >
-                <View style={{ flex: 1, minWidth: 0 }} className="justify-center">
-                  <Text className="text-[10px] font-bold text-[#475569] uppercase tracking-wider">BALANCE</Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    className={`text-base font-bold tracking-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
-                  >
-                    ETB {balance}
-                  </Text>
-                </View>
-                <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}>
-                  <Wallet size={20} color={isDark ? '#064e3b' : 'white'} />
-                </View>
-              </TouchableOpacity>
-            ) : null}
+        <View style={styles.topOverlay}>
+          <View style={styles.leftActions}>
+            <TouchableOpacity onPress={() => router.back()} style={[styles.pillButton, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#fff' }]}>
+              <MaterialIcons name="arrow-back" size={24} color={isDark ? '#34d399' : primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.pillButton, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#fff' }]}>
+              <MaterialIcons name="search" size={24} color={isDark ? '#34d399' : primary} />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.walletWidget, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#fff' }]}>
+            <View style={styles.walletTextContainer}>
+              <Text style={styles.walletLabel}>BALANCE</Text>
+              <Text style={[styles.walletAmount, { color: isDark ? '#34d399' : primary }]}>ETB 450.00</Text>
+            </View>
+            <View style={[styles.walletIcon, { backgroundColor: isDark ? '#34d399' : primary }]}>
+              <MaterialIcons name="account-balance-wallet" size={20} color={isDark ? '#064e3b' : "#fff"} />
+            </View>
           </View>
         </View>
 
-        {/* Balanced Controls Row */}
-        <View
-          className={`absolute bottom-[225px] left-6 right-6 flex-row items-end z-[60] ${
-            navigation.status === "IDLE" ? "justify-between" : "justify-end"
-          }`}
-          style={Platform.OS === 'android' ? { elevation: 14 } : undefined}
-          pointerEvents="box-none"
-        >
-            {navigation.status === "IDLE" && (
-            <View className="relative h-14 justify-end">
-              {showDistanceDropdown && (
-                <View className={`absolute bottom-16 left-0 w-36 rounded-2xl p-2 shadow-2xl ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}>
-                  {distanceOptions.map((opt) => (
-                    <TouchableOpacity 
-                      key={opt.label} 
-                      className={`p-3 rounded-lg ${selectedDistance === opt.label ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : ''}`}
-                      onPress={() => { setSelectedDistance(opt.label); setShowDistanceDropdown(false); }}
-                    >
-                      <Text className={`text-sm font-semibold ${selectedDistance === opt.label ? (isDark ? 'text-[#064e3b]' : 'text-white') : (isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]')}`}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                onPress={() => setShowDistanceDropdown(!showDistanceDropdown)} 
-                className={`flex-row items-center gap-2 px-4 h-12 rounded-full shadow-lg ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
-              >
-                <Text className={`text-sm font-bold ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>{selectedDistance}</Text>
-                <ChevronDown size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-            )}
+        {/* High-Contrast P Pins */}
+        <View style={[styles.pPin, { top: '25%', right: '15%' }]}>
+          <Text style={styles.pPinText}>P</Text>
+        </View>
+        <View style={[styles.pPin, styles.pPinActive, { bottom: '40%', left: '20%' }]}>
+          <Text style={styles.pPinTextActive}>P</Text>
+        </View>
+        <View style={[styles.pPin, { top: '45%', right: '40%' }]}>
+          <Text style={styles.pPinText}>P</Text>
+        </View>
 
-            <View className="flex-row gap-3" pointerEvents="box-none">
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                onPress={() => {
-                  if (navigation.status !== 'IDLE') {
-                    if (navigation.routeGeometry?.type === 'LineString' && cameraRef?.current?.fitBounds) {
-                      try {
-                        const user = navigation.userCoords;
-                        const extra = user ? [[user.lng, user.lat] as [number, number]] : [];
-                        const bounds = boundsFromLineString(navigation.routeGeometry as any, extra);
-                        cameraRef.current.fitBounds(bounds.ne, bounds.sw, [240, 44, 220, 44], 900);
-                      } catch { /* ignore */ }
-                    } else if (navigation.destination && cameraRef?.current?.setCamera) {
-                      cameraRef.current.setCamera({
-                        centerCoordinate: [navigation.destination.lng, navigation.destination.lat],
-                        zoomLevel: 15.5,
-                        animationDuration: 1000,
-                        animationMode: 'flyTo',
-                        pitch: 0,
-                        heading: 0
-                      });
-                    }
-                  } else {
-                    setSelectedLocation(null);
-                    void locateUser();
-                  }
-                }}
-                className={`w-14 h-14 rounded-full items-center justify-center shadow-lg border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
-              >
-                <Target size={26} color={isDark ? '#34d399' : primary} />
-              </TouchableOpacity>
-            </View>
+        {/* User Location Crosshair */}
+        <View style={styles.userLocation}>
+          <View style={styles.userPulse} />
+          <View style={styles.userDot} />
+        </View>
+
+        {/* Floating Action Button for Location Recenter - Crosshair Style */}
+        <View style={styles.distanceSelector}>
+          <View style={[styles.distancePillbox, { backgroundColor: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)' }]}>
+            <TouchableOpacity style={[styles.distBtn, styles.distBtnActive]}>
+              <Text style={styles.distBtnTextActive}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.distBtn}>
+              <Text style={styles.distBtnText}>200m</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.distBtn}>
+              <Text style={styles.distBtnText}>400m</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.distBtn}>
+              <Text style={styles.distBtnText}>600m</Text>
+            </TouchableOpacity>
           </View>
+          <View style={[styles.distanceLabelBox, { backgroundColor: isDark ? '#1e293b' : '#fff' }]}>
+            <Text style={[styles.distanceLabel, { color: isDark ? '#34d399' : primary }]}>DISTANCE</Text>
+          </View>
+        </View>
 
-        {/* Parking Cards Carousel */}
-        {navigation.status === 'IDLE' && (
-          <View className="absolute bottom-[115px] left-0 right-0 z-40">
-            {loading ? (
-              <View className={`mx-6 h-24 rounded-[18px] flex-row items-center px-4 gap-3 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}>
-                <ActivityIndicator size="small" color={primary} />
-                <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Finding spots...</Text>
+        <TouchableOpacity style={[styles.trackBtn, { backgroundColor: isDark ? '#1e293b' : '#fff' }]}>
+          <MaterialIcons name="my-location" size={28} color={isDark ? '#34d399' : primary} />
+        </TouchableOpacity>
+
+        {/* Horizontal Scrollable Parking Cards (KEPT FROM ORIGINAL) */}
+        <View style={styles.cardsWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsScroll}>
+            {/* Card 1 */}
+            <View style={[styles.card, { backgroundColor: isDark ? '#0f172a' : '#fff' }]}>
+              <View style={styles.cardInfo}>
+                <ImageBackground
+                  source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBR0b_HtyojffIY6GBWEOP72fKjKXiz14ai3V6859g3Oth58o0A84PaLuSC6yAppnl9El79LljNxIBlmHZQL_AmwYmlOe3It5bMZ6R4ID3HHY3tTQl07DDxXsmSHnZde1Rq22_dpQDSpxN1fgEcfYwnZHFs_q6WlRdJmqdj8ysEAADE8EduW6jvPRPTJ-C85iOXI6UbkTlv9UF0qe-CqstuyOivJjI8J4CJJNI6LKYwybnhw7GlBlkXIIN5kE1JrLF2FxA2ZlCfSlA' }}
+                  style={styles.cardImg}
+                  imageStyle={{ borderRadius: 12 }}
+                />
+                <View style={styles.cardDetails}>
+                  <View>
+                    <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>Bole Medhanealem Mall</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>Cameroon St, Bole</Text>
+                  </View>
+                  <View style={styles.cardSlots}>
+                    <MaterialIcons name="check-circle" size={14} color={secondary} />
+                    <Text style={[styles.slotsText, { color: secondary }]}>12 slots available</Text>
+                  </View>
+                  <Text style={[styles.priceText, { color: primary }]}>$2.50<Text style={styles.priceUnit}>/hr</Text></Text>
+                </View>
               </View>
-            ) : error ? (
-              <View className={`mx-6 h-24 rounded-[18px] flex-row items-center px-4 gap-3 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}>
-                <AlertCircle size={24} color="#ef4444" />
-                <Text className="flex-1 text-red-500 text-sm font-bold" numberOfLines={1}>{error}</Text>
-                <TouchableOpacity onPress={fetchData} className="px-4 py-2 rounded-lg bg-[#064e3b]/10">
-                  <Text className="text-[#064e3b] font-bold">Retry</Text>
+              <View style={styles.cardFooter}>
+                <TouchableOpacity style={[styles.reserveBtn, { backgroundColor: primary }]} onPress={() => router.push('/reserve' as any)}>
+                  <Text style={styles.reserveBtnText}>Reserve Spot</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-                {safeLocations.length === 0 ? (
-                  <View className={`flex-row w-[300px] h-24 rounded-[18px] p-4 items-center gap-3 border border-[#064e3b]/20 ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}>
-                    <MapPin size={24} color="#94a3b8" />
-                    <View className="flex-1">
-                      <Text className={`text-sm font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>No spots found</Text>
-                      <Text className="text-[10px] text-[#64748b]">Try increasing distance</Text>
-                    </View>
-                    <TouchableOpacity className="w-9 h-9 border border-[#064e3b] rounded-full items-center justify-center" onPress={fetchData}>
-                      <RefreshCw size={18} color={primary} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  safeLocations.map((loc) => (
-                    <TouchableOpacity 
-                      key={loc.id} 
-                      activeOpacity={0.9}
-                      onPress={() => router.push({ pathname: '/reserve', params: { id: loc.id } } as any)}
-                      className={`flex-row w-[240px] h-20 rounded-2xl overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2' : 'border-[#064e3b]/15'} ${isDark ? 'bg-[#1e293b] border-[#34d399]/20' : 'bg-white'}`}
-                    >
-                      <Image 
-                        source={{ uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop' }} 
-                        className="w-20 h-full" 
-                      />
-                      <View className="flex-1 p-2.5 justify-between">
-                        <View className="flex-row justify-between items-start">
-                          <Text 
-                            className={`text-[13px] font-bold flex-1 mr-1 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} 
-                            numberOfLines={1}
-                          >
-                            {loc.name}
-                          </Text>
-                          <Text className="text-[12px] font-black text-[#064e3b]">25<Text className="text-[9px] font-normal text-[#64748b]">/h</Text></Text>
-                        </View>
-                        <View className="flex-row justify-between items-center">
-                          <View className="flex-row items-center gap-1">
-                            <View className="w-1.5 h-1.5 rounded-full bg-[#059669]" />
-                            <Text className="text-[9px] font-bold text-[#059669]">Available</Text>
-                          </View>
-                          <ArrowRight size={14} color="#94a3b8" />
-                        </View>
+            </View>
+
+            {/* Card 2 */}
+            <View style={[styles.card, styles.cardSelected, { backgroundColor: isDark ? '#0f172a' : '#fff', borderColor: primary }]}>
+              <View style={styles.cardInfo}>
+                <ImageBackground
+                  source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAHWn4PSOhz2pvDWc_JghtnLbF9YTjSIdP-k-3a9SjssR8YSLBYgQ_-Y2ydN8N3pdEOsmBrpRnABa_Qv0oWpIzb70OBG52d4JO7zoXlYji6oBF8pHMGkRxSKND3F3nIIo4eyKbnHLS92OqgGuGqufG18JeF7yfduVziDJvGrP2tqmanqx9XaOCUcDVFl3UXnxaHlVQOM9u9jQ1TnCc1lEqiBMv1XHBSQHuEJa79jyaMp6JLyI5Mjnz4fXX0oK9Kk58lVCNk5pqVLLs' }}
+                  style={styles.cardImg}
+                  imageStyle={{ borderRadius: 12 }}
+                />
+                <View style={styles.cardDetails}>
+                  <View>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={[styles.cardTitle, { color: theme.text, flex: 1 }]} numberOfLines={1}>Edna Mall Underground</Text>
+                      <View style={[styles.selectedBadge, { backgroundColor: `${primary}1a` }]}>
+                        <Text style={[styles.selectedBadgeText, { color: primary }]}>SELECTED</Text>
                       </View>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            )}
-          </View>
-        )}
+                    </View>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>Bole Road, Central</Text>
+                  </View>
+                  <View style={styles.cardSlots}>
+                    <MaterialIcons name="check-circle" size={14} color={secondary} />
+                    <Text style={[styles.slotsText, { color: secondary }]}>4 slots available</Text>
+                  </View>
+                  <Text style={[styles.priceText, { color: primary }]}>$3.00<Text style={styles.priceUnit}>/hr</Text></Text>
+                </View>
+              </View>
+              <View style={styles.cardFooter}>
+                <TouchableOpacity style={[styles.reserveBtn, { backgroundColor: primary }]} onPress={() => router.push('/reserve' as any)}>
+                  <Text style={styles.reserveBtnText}>Reserve Spot</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+    backgroundColor: '#cbd5e1',
+  },
+  mapImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapGradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(248, 250, 252, 0.2)',
+  },
+  topOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 24,
+    right: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 50,
+  },
+  leftActions: {
+    gap: 12,
+  },
+  pillButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+  },
+  walletWidget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingRight: 4,
+    paddingVertical: 4,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    gap: 12,
+  },
+  walletTextContainer: {
+    alignItems: 'flex-start',
+  },
+  walletLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: '#475569',
+  },
+  walletAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  walletIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pPin: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    backgroundColor: '#064e3b',
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  pPinActive: {
+    transform: [{ scale: 1.15 }],
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  pPinText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  pPinTextActive: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 18,
+  },
+  userLocation: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -10 }, { translateY: -10 }],
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+  },
+  userPulse: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    backgroundColor: 'rgba(6,78,59,0.1)',
+    borderRadius: 40,
+  },
+  userDot: {
+    width: 20,
+    height: 20,
+    backgroundColor: '#064e3b',
+    borderRadius: 10,
+    borderWidth: 4,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  distanceSelector: {
+    position: 'absolute',
+    left: 24,
+    bottom: 250,
+    zIndex: 40,
+    alignItems: 'center',
+    gap: 8,
+  },
+  distancePillbox: {
+    padding: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    gap: 4,
+  },
+  distBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  distBtnActive: {
+    backgroundColor: '#064e3b',
+  },
+  distBtnText: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  distBtnTextActive: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  distanceLabelBox: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  distanceLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  trackBtn: {
+    position: 'absolute',
+    right: 24,
+    bottom: 250,
+    zIndex: 40,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  cardsWrapper: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+  },
+  cardsScroll: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  card: {
+    width: 320,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  cardSelected: {
+    borderWidth: 2,
+  },
+  cardInfo: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  cardImg: {
+    width: 96,
+    height: 96,
+    borderRadius: 12,
+  },
+  cardDetails: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  selectedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  selectedBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  cardSlots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  slotsText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  priceText: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  priceUnit: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#64748b',
+  },
+  cardFooter: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  reserveBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  reserveBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});
