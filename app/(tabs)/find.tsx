@@ -346,7 +346,7 @@ export default function FindScreen() {
         <MapView
           displayedLocations={geoJsonFeatures}
           onLocationClick={handleMapLocationClick}
-          selectedLocation={geoJsonFeatures.find(f => f.id === selectedLocation?.id)}
+          selectedLocation={geoJsonFeatures.find((f: { id: any; }) => f.id === selectedLocation?.id)}
           reservationRouteContext={reservationRouteContext}
           onDismissReservationRoute={handleDismissReservationRoute}
         />
@@ -387,8 +387,8 @@ export default function FindScreen() {
                           />
                         </View>
                         <ScrollView className="max-h-[240px]">
-                          {searchResults.map((n) => (
-                            <TouchableOpacity 
+                          {searchResults.map((n: { name: string; lat: number; lng: number }) => (
+                            <TouchableOpacity
                               key={n.name}
                               onPress={() => selectNeighborhood(n)}
                               className="px-5 py-4 border-b border-slate-50 dark:border-slate-800 flex-row items-center gap-3"
