@@ -53,7 +53,7 @@ function DotGrid() {
       dots.push(
         <View
           key={`${r}-${c}`}
-          style={{ width: 1.2, height: 1.2, borderRadius: 0.6, backgroundColor: 'rgba(255,255,255,0.06)', margin: 5 }}
+          style={{ width: 1.5, height: 1.5, borderRadius: 0.75, backgroundColor: 'rgba(255,255,255,0.12)', margin: 5 }}
         />
       );
     }
@@ -372,7 +372,14 @@ export default function WalletScreen() {
               history.map((tx) => (
                 <View 
                   key={tx.id}
-                  className={`flex-row items-center justify-between p-4 rounded-2xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 5,
+                    elevation: 2,
+                  }}
+                  className={`flex-row items-center justify-between p-4 rounded-2xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 >
                   <View className="flex-row items-center gap-4">
                     <View className={`w-12 h-12 rounded-xl items-center justify-center ${tx.type === 'CREDIT' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
@@ -578,9 +585,16 @@ export default function WalletScreen() {
                   <TouchableOpacity
                     onPress={handleTopUp}
                     disabled={!topUpAmount || topUpLoading}
-                    className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 shadow-xl ${
+                    style={{
+                      shadowColor: isDark ? '#34d399' : '#064e3b',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 15,
+                      elevation: 10,
+                    }}
+                    className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 ${
                       !topUpAmount || topUpLoading ? 'opacity-50' : ''
-                    } ${isDark ? 'bg-[#34d399] shadow-[#34d399]/10' : 'bg-[#064e3b] shadow-[#064e3b]/20'}`}
+                    } ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
                   >
                     {topUpLoading ? (
                       <ActivityIndicator color={isDark ? '#0f172a' : '#ffffff'} />
@@ -610,7 +624,17 @@ export default function WalletScreen() {
                 </View>
 
                 <View className="items-center mt-2 mb-8 px-2">
-                  <View className="w-[100px] h-[100px] rounded-full bg-[#064e3b] items-center justify-center mb-6 shadow-xl shadow-[#064e3b]/30">
+                  <View 
+                    style={{
+                      shadowColor: '#064e3b',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 15,
+                      elevation: 10,
+                      backgroundColor: '#064e3b'
+                    }}
+                    className="w-[100px] h-[100px] rounded-full items-center justify-center mb-6"
+                  >
                     <CheckCircle2 size={50} color="white" />
                   </View>
                   <Text className={`text-[32px] font-black tracking-tight mb-3 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
@@ -624,8 +648,15 @@ export default function WalletScreen() {
 
                 <View className="w-full px-4 mb-6">
                   <View
+                    style={isDark ? {} : {
+                      shadowColor: '#e2e8f0',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 10,
+                      elevation: 3,
+                    }}
                     className={`w-full rounded-[32px] border relative p-8 ${
-                      isDark ? 'bg-[#1e293b] border-[#334155] shadow-none' : 'bg-white border-slate-100 shadow-sm shadow-slate-200'
+                      isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'
                     }`}
                   >
                     <View className={`absolute top-[55%] -left-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />

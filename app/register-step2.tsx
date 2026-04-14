@@ -71,7 +71,17 @@ export default function RegisterStep2Screen() {
             {/* Branding */}
             <View className="mb-10 items-center w-full">
               <View className="flex-row items-center gap-2">
-                <View className="w-12 h-12 rounded-lg items-center justify-center shadow-lg" style={{ backgroundColor: primary }}>
+                <View 
+                  style={{
+                    shadowColor: primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }}
+                  className="w-12 h-12 rounded-lg items-center justify-center" 
+                  style={{ backgroundColor: primary }}
+                >
                   <Text className="text-white font-black text-2xl">P</Text>
                 </View>
                 <View className="flex-row items-center">
@@ -82,7 +92,16 @@ export default function RegisterStep2Screen() {
             </View>
 
             {/* Registration Card */}
-            <View className={`w-full rounded-3xl border overflow-hidden shadow-xl ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200/30'}`}>
+            <View 
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 10,
+              }}
+              className={`w-full rounded-3xl border overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200/30'}`}
+            >
               <View className={`p-8 items-center border-b border-dashed ${isDark ? 'bg-[#022c22] border-white/30' : 'bg-[#064e3b] border-white/30'}`}>
                 <View className="flex-row gap-2 mb-4">
                   <View className="w-12 h-1 rounded-full bg-[#6ee7b7]" />
@@ -148,8 +167,15 @@ export default function RegisterStep2Screen() {
                 <TouchableOpacity 
                   onPress={handleComplete}
                   disabled={loading}
-                  className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg"
-                  style={{ backgroundColor: primary }}
+                  style={{
+                    shadowColor: primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 5,
+                    backgroundColor: primary
+                  }}
+                  className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2"
                 >
                   <Text className="text-white font-extrabold text-base">{loading ? 'Finalizing...' : 'Complete Registration'}</Text>
                   {!loading && <ArrowRight size={18} color="white" />}

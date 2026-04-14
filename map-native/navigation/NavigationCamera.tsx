@@ -61,7 +61,7 @@ export function NavigationCamera() {
           centerCoordinate: targetCoords,
           zoomLevel: 18.5,
           pitch: 70,
-          heading: smoothedBearing,
+          heading: 0,
           animationMode: isFirstFrameNavigating ? 'flyTo' : 'moveTo',
           animationDuration: isFirstFrameNavigating ? 2500 : 1000,
         });

@@ -41,7 +41,16 @@ export function TicketQrModal({ visible, reservation, onClose }: Props) {
           activeOpacity={1}
           onPress={onClose}
         />
-        <View className="bg-white rounded-[28px] max-w-[400px] w-full self-center shadow-2xl">
+        <View 
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 15 },
+            shadowOpacity: 0.15,
+            shadowRadius: 25,
+            elevation: 12,
+          }}
+          className="bg-white rounded-[28px] max-w-[400px] w-full self-center"
+        >
           <View className="px-6 pt-6 pb-2 flex-row items-start justify-between">
             <View className="flex-row items-center gap-3 flex-1">
               <View

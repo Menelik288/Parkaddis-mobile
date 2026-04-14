@@ -51,7 +51,14 @@ export default function DashboardScreen() {
     const isPaid = status === 'PAID' || status === 'COMPLETED';
     return (
       <TouchableOpacity
-        className={`p-5 rounded-[28px] border flex-row justify-between items-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9] shadow-sm'}`}
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
+        className={`p-5 rounded-[28px] border flex-row justify-between items-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
         activeOpacity={0.7}
         onPress={onPress}
       >
@@ -339,7 +346,16 @@ export default function DashboardScreen() {
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View className="flex-1 bg-black/20">
             <TouchableWithoutFeedback>
-              <View className={`absolute top-24 left-5 w-52 rounded-2xl border shadow-xl p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}>
+              <View 
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 20,
+                  elevation: 10,
+                }}
+                className={`absolute top-24 left-5 w-52 rounded-2xl border p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+              >
                 <TouchableOpacity 
                   className="flex-row items-center p-3 gap-3 rounded-xl"
                   onPress={() => { setMenuVisible(false); router.push('/saved'); }}
@@ -420,7 +436,14 @@ export default function DashboardScreen() {
 
           {activeReservation ? (
             <View
-              className={`rounded-[40px] border p-6 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#d1fae5] shadow-lg shadow-[#064e3b]/10'}`}
+              style={{
+                shadowColor: isDark ? '#000' : '#064e3b',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.1,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+              className={`rounded-[40px] border p-6 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#d1fae5]'}`}
             >
               <Text
                 numberOfLines={2}
@@ -546,23 +569,29 @@ export default function DashboardScreen() {
               </View>
             </View>
           ) : (
-            /* Ready to Park Card with Integrated Search */
-            <View 
+            /* Ready to Park Card with Integrated Search */            <View 
               key="fallback-parking-view-v4"
               style={{
-                borderRadius: 40,
-                borderWidth: 0,
+                borderRadius: 32,
                 paddingVertical: 24,
-                paddingHorizontal: 12,
-                backgroundColor: isDark ? 'rgba(52, 211, 153, 0.06)' : 'rgba(236, 253, 245, 0.5)',
-                shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 10, elevation: 1,
+                paddingHorizontal: 16,
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(236, 253, 245, 0.8)',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(6, 78, 59, 0.05)',
               }}
             >
-              {/* Larger, rounder Search bar */}
+              {/* Simplified Search bar interaction */}
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={openSearch}
-                className={`w-full h-[68px] rounded-[32px] flex-row items-center px-7 mb-6 border ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}
+                className={`w-full h-[64px] rounded-[24px] flex-row items-center px-6 mb-6 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
               >
                 <Search size={22} color={isDark ? '#34d399' : '#064e3b'} />
                 <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: '#94a3b8', marginLeft: 14 }}>Search parking...</Text>
@@ -576,7 +605,14 @@ export default function DashboardScreen() {
                 <Text className={`text-lg font-bold mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Ready for parking?</Text>
                 
                 <TouchableOpacity 
-                  className={`w-full max-w-[240px] py-4 rounded-xl items-center justify-center shadow-lg ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                  className={`w-full max-w-[240px] py-4 rounded-xl items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                  style={{
+                    shadowColor: isDark ? '#34d399' : '#064e3b',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    elevation: 10,
+                  }}
                   onPress={() => router.push('/find')}
                   activeOpacity={0.8}
                 >

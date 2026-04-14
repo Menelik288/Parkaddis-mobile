@@ -284,6 +284,13 @@ export default function ReserveScreen() {
             ))}
             <TouchableOpacity 
               onPress={() => setShowDatePicker(true)}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 3,
+              }}
               className={`w-[64px] h-[80px] rounded-2xl border-2 border-dashed items-center justify-center ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-white border-slate-200'}`}
             >
               <Calendar size={20} color={isDark ? '#475569' : '#94a3b8'} className="mb-1" />
@@ -335,7 +342,14 @@ export default function ReserveScreen() {
                 setDurationMins(newDur);
                 setDurationText(newDur.toString());
               }}
-              className={`w-12 h-12 rounded-xl items-center justify-center shadow-sm ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
+              className={`w-12 h-12 rounded-xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
               activeOpacity={0.7}
             >
               <Minus size={20} color={isDark ? '#f8fafc' : '#0f172a'} />
@@ -363,7 +377,14 @@ export default function ReserveScreen() {
                 setDurationMins(newDur);
                 setDurationText(newDur.toString());
               }}
-              className={`w-12 h-12 rounded-xl items-center justify-center shadow-lg z-10 ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
+              style={{
+                shadowColor: isDark ? '#34d399' : '#064e3b',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.2,
+                shadowRadius: 15,
+                elevation: 10,
+              }}
+              className={`w-12 h-12 rounded-xl items-center justify-center z-10 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
               activeOpacity={0.7}
             >
               <Plus size={20} color={isDark ? '#0f172a' : '#ffffff'} />
@@ -387,7 +408,14 @@ export default function ReserveScreen() {
 
         <TouchableOpacity 
           onPress={closeSheet} 
-          className={`w-full py-5 rounded-[24px] flex-row items-center justify-center gap-2 shadow-2xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
+          style={{
+            shadowColor: isDark ? '#34d399' : '#000',
+            shadowOffset: { width: 0, height: 15 },
+            shadowOpacity: 0.2,
+            shadowRadius: 20,
+            elevation: 12,
+          }}
+          className={`w-full py-5 rounded-[24px] flex-row items-center justify-center gap-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
         >
            <Text className={`text-lg font-black tracking-tight ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Update Schedule</Text>
            <CheckCircle2 size={22} color={isDark ? '#0f172a' : 'white'} />
@@ -407,10 +435,17 @@ export default function ReserveScreen() {
                 <View key={vehicle.id} className="relative group mb-4">
                   <TouchableOpacity 
                     onPress={() => setSelectedVehicle(vehicle)} 
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: isActive ? 10 : 2 },
+                      shadowOpacity: isActive ? 0.1 : 0.05,
+                      shadowRadius: isActive ? 15 : 8,
+                      elevation: isActive ? 10 : 2,
+                    }}
                     className={`rounded-3xl border text-left p-5 flex-row items-center justify-between ${
                       isActive 
-                        ? (isDark ? 'bg-[#1e293b] border-[#34d399] shadow-lg' : 'bg-white border-[#064e3b] shadow-xl shadow-[#064e3b]/5') 
-                        : (isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100 shadow-sm')
+                        ? (isDark ? 'bg-[#1e293b] border-[#34d399]' : 'bg-white border-[#064e3b]') 
+                        : (isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100')
                     }`}
                   >
                     <View className="flex-row items-center gap-4">
@@ -454,7 +489,14 @@ export default function ReserveScreen() {
         </ScrollView>
         <TouchableOpacity 
           onPress={closeSheet} 
-          className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-3 mt-4 shadow-xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/10' : 'bg-[#064e3b] shadow-[#064e3b]/20'}`}
+          style={{
+            shadowColor: isDark ? '#34d399' : '#064e3b',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.15,
+            shadowRadius: 15,
+            elevation: 10,
+          }}
+          className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-3 mt-4 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
         >
            <Plus size={20} color={isDark ? '#0f172a' : 'white'} />
            <Text className={`text-lg font-bold ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Save Selection</Text>
@@ -483,9 +525,27 @@ export default function ReserveScreen() {
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 16 }}>
         {/* Hero Image */}
-        <View className={`w-full h-[180px] rounded-[32px] overflow-hidden mb-8 relative border ${isDark ? 'border-[#334155]' : 'border-[#f8fafc] shadow-sm'}`}>
+        <View 
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
+          }}
+          className={`w-full h-[180px] rounded-[32px] overflow-hidden mb-8 relative border ${isDark ? 'border-[#334155]' : 'border-[#f8fafc]'}`}
+        >
           <Image className={`w-full h-full ${isDark ? 'bg-[#1e293b]' : 'bg-slate-200'}`} source={{uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800&h=600&fit=crop'}} />
-          <View className={`absolute top-4 right-4 px-4 py-2 rounded-full flex-row items-center gap-2 shadow-sm ${isDark ? 'bg-[#0f172a]/95 border border-[#334155]' : 'bg-white/95 border border-white'}`}>
+          <View 
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 1,
+            }}
+            className={`absolute top-4 right-4 px-4 py-2 rounded-full flex-row items-center gap-2 ${isDark ? 'bg-[#0f172a]/95 border border-[#334155]' : 'bg-white/95 border border-white'}`}
+          >
             <View className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#34d399]' : 'bg-[#10b981]'}`} />
             <Text className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>Available</Text>
           </View>
@@ -501,7 +561,16 @@ export default function ReserveScreen() {
         <Text className={`text-2xl font-bold tracking-tight mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Your Schedule</Text>
 
         {/* Ticket Style Schedule Card */}
-        <View className={`border rounded-[32px] mb-10 relative overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#34d399]/30' : 'bg-white border-[#34d399]/20 shadow-sm'}`}>
+        <View 
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
+          }}
+          className={`border rounded-[32px] mb-10 relative overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#34d399]/30' : 'bg-white border-[#34d399]/20'}`}
+        >
           <View className={`absolute -top-4 left-1/2 -ml-4 w-8 h-8 rounded-full z-10 border ${isDark ? 'bg-[#0f172a] border-[#34d399]/30' : 'bg-[#f8fafc] border-[#34d399]/20'}`} />
           <View className={`absolute -bottom-4 left-1/2 -ml-4 w-8 h-8 rounded-full z-10 border ${isDark ? 'bg-[#0f172a] border-[#34d399]/30' : 'bg-[#f8fafc] border-[#34d399]/20'}`} />
 
@@ -552,7 +621,16 @@ export default function ReserveScreen() {
         <Text className={`text-2xl font-bold tracking-tight mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Selected Vehicle</Text>
 
         {/* Active Vehicle Card */}
-        <View className={`rounded-[32px] p-8 mb-10 shadow-xl ${isDark ? 'bg-[#34d399]/10 border border-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/20'}`}>
+        <View 
+          style={{
+            shadowColor: isDark ? '#34d399' : '#064e3b',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 10,
+          }}
+          className={`rounded-[32px] p-8 mb-10 ${isDark ? 'bg-[#34d399]/10 border border-[#34d399]/20' : 'bg-[#064e3b]'}`}
+        >
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-4">
               <View className={`w-12 h-12 rounded-2xl items-center justify-center border ${isDark ? 'bg-[#34d399]/20 border-[#34d399]/30' : 'bg-white/10 border-white/5'}`}>
@@ -574,7 +652,16 @@ export default function ReserveScreen() {
         <Text className={`text-2xl font-bold tracking-tight mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Price Receipt</Text>
 
         {/* Price Breakdown */}
-        <View className={`rounded-[40px] p-8 mb-12 relative overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100 shadow-xl shadow-slate-200/50'}`}>
+        <View 
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.1,
+            shadowRadius: 20,
+            elevation: 10,
+          }}
+          className={`rounded-[40px] p-8 mb-12 relative overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'}`}
+        >
           <View className="space-y-6 relative z-10">
             <View className="flex-row justify-between items-center">
               <View>
@@ -610,7 +697,14 @@ export default function ReserveScreen() {
         {/* Action Bottom */}
         <View className="pb-8">
           <TouchableOpacity 
-            className={`w-full h-[72px] rounded-[24px] flex-row items-center justify-center gap-2 shadow-xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
+            style={{
+              shadowColor: isDark ? '#34d399' : '#064e3b',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.2,
+              shadowRadius: 20,
+              elevation: 10,
+            }}
+            className={`w-full h-[72px] rounded-[24px] flex-row items-center justify-center gap-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
             onPress={handleConfirm}
             disabled={booking}
             activeOpacity={0.8}
@@ -661,7 +755,16 @@ export default function ReserveScreen() {
               <View className="absolute inset-0 bg-black/60" />
             </TouchableWithoutFeedback>
             
-            <View className={`w-full rounded-[48px] p-8 shadow-2xl ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}>
+            <View 
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 15 },
+                shadowOpacity: 0.15,
+                shadowRadius: 25,
+                elevation: 12,
+              }}
+              className={`w-full rounded-[48px] p-8 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+            >
               <View className="items-center mb-8">
                 <Text className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Set {activeTimeType === 'entry' ? 'Arrival' : 'Departure'}</Text>
                 <View className="h-1 w-12 bg-[#34d399] rounded-full mt-2" />
@@ -767,7 +870,14 @@ export default function ReserveScreen() {
 
               <TouchableOpacity 
                 onPress={() => setShowTimePicker(false)}
-                className={`w-full py-5 rounded-3xl items-center justify-center mt-8 shadow-xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
+                style={{
+                  shadowColor: isDark ? '#34d399' : '#064e3b',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 20,
+                  elevation: 10,
+                }}
+                className={`w-full py-5 rounded-3xl items-center justify-center mt-8 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
               >
                 <Text className={`text-lg font-black ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Confirm Time</Text>
               </TouchableOpacity>
@@ -782,7 +892,16 @@ export default function ReserveScreen() {
               <View className="absolute inset-0 bg-black/60" />
             </TouchableWithoutFeedback>
             
-             <View className={`w-full rounded-[48px] p-8 shadow-2xl ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}>
+             <View 
+               style={{
+                 shadowColor: '#000',
+                 shadowOffset: { width: 0, height: 20 },
+                 shadowOpacity: 0.3,
+                 shadowRadius: 30,
+                 elevation: 15,
+               }}
+               className={`w-full rounded-[48px] p-8 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+             >
               <View className="flex-row justify-between items-center mb-8">
                 <TouchableOpacity 
                    onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
@@ -829,7 +948,16 @@ export default function ReserveScreen() {
                         }}
                         className="w-[14.28%] aspect-square items-center justify-center mb-2"
                       >
-                         <View className={`w-12 h-12 rounded-2xl items-center justify-center relative ${isSelected ? 'bg-[#064e3b] shadow-lg shadow-[#064e3b]/30' : ''}`}>
+                          <View 
+                            style={isSelected ? {
+                              shadowColor: isDark ? '#34d399' : '#064e3b',
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.2,
+                              shadowRadius: 8,
+                              elevation: 5,
+                            } : {}}
+                            className={`w-12 h-12 rounded-2xl items-center justify-center relative ${isSelected ? 'bg-[#064e3b]' : ''}`}
+                          >
                             <Text className={`text-sm font-black ${
                               isSelected ? 'text-white' : 
                               (dayObj.isCurrentMonth ? (isDark ? 'text-white' : 'text-[#0f172a]') : 'text-[#cbd5e1]')
@@ -845,7 +973,14 @@ export default function ReserveScreen() {
 
                 <TouchableOpacity 
                   onPress={() => setShowDatePicker(false)}
-                  className={`w-full py-5 rounded-3xl items-center justify-center mt-6 shadow-xl ${isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'}`}
+                  style={{
+                    shadowColor: isDark ? '#34d399' : '#064e3b',
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 20,
+                    elevation: 10,
+                  }}
+                  className={`w-full py-5 rounded-3xl items-center justify-center mt-6 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
                 >
                   <Text className={`text-lg font-black ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Confirm Date</Text>
                 </TouchableOpacity>

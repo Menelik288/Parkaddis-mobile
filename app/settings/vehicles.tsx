@@ -55,7 +55,14 @@ export default function VehiclesScreen() {
           {vehicles.map((vehicle) => (
             <View 
               key={vehicle.id}
-              className={`rounded-[32px] border p-5 shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 5,
+                elevation: 2,
+              }}
+              className={`rounded-[32px] border p-5 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
             >
               <View className="flex-row justify-between items-start mb-4">
                 <View className="flex-row items-center gap-4">
@@ -113,7 +120,17 @@ export default function VehiclesScreen() {
         </TouchableOpacity>
 
         {/* Tip Box - Redesigned to match Stitch precisely */}
-        <View className="relative overflow-hidden p-7 rounded-[40px] bg-[#064e3b] shadow-2xl mb-4">
+        <View 
+          style={{
+            shadowColor: '#064e3b',
+            shadowOffset: { width: 0, height: 15 },
+            shadowOpacity: 0.25,
+            shadowRadius: 25,
+            elevation: 12,
+            backgroundColor: '#064e3b'
+          }}
+          className="relative overflow-hidden p-7 rounded-[40px] mb-4"
+        >
           {/* Background Icon - Large and faint */}
           <View className="absolute -right-6 -bottom-10 opacity-10">
             <Info size={160} color="white" />

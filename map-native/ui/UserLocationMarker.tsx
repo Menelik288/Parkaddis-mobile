@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, useColorScheme } from 'react-native';
-import { ArrowBigUp } from 'lucide-react-native';
+import { Navigation } from 'lucide-react-native';
 import { useMap } from '../MapProvider';
 import { MAP_PIN_SECONDARY } from './mapPinTokens';
 
@@ -24,29 +24,22 @@ export function UserLocationMarker() {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.parallel([
-        Animated.sequence([
-          Animated.timing(pulseScale, {
-            toValue: 1.55,
-            duration: 1400,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseScale, {
-            toValue: 0.6,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
+        Animated.timing(pulseScale, {
+          toValue: 2.2,
+          duration: 2000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
         Animated.sequence([
           Animated.timing(pulseOpacity, {
-            toValue: 0,
-            duration: 1400,
-            easing: Easing.out(Easing.cubic),
+            toValue: 0.25,
+            duration: 0,
             useNativeDriver: true,
           }),
           Animated.timing(pulseOpacity, {
-            toValue: 0.45,
-            duration: 0,
+            toValue: 0,
+            duration: 2000,
+            easing: Easing.out(Easing.ease),
             useNativeDriver: true,
           }),
         ]),
@@ -58,25 +51,9 @@ export function UserLocationMarker() {
 
   const accent = isDark ? PRIMARY_DARK : PRIMARY_LIGHT;
 
-  if (isNavigating) {
-    return (
-      <View 
-        style={[
-          styles.arrowWrap,
-          { transform: [{ rotate: `${smoothedBearing}deg` }] }
-        ]} 
-        pointerEvents="none"
-      >
-        <View style={[styles.arrowBody, { borderBottomColor: accent }]}>
-          <View style={styles.arrowInner} />
-        </View>
-        <View style={[styles.arrowBase, { backgroundColor: accent }]} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.wrap} pointerEvents="none">
+      {/* Pulse Accuracy Indicator */}
       <Animated.View
         style={[
           styles.pulse,
@@ -87,8 +64,22 @@ export function UserLocationMarker() {
           },
         ]}
       />
-      <View style={styles.outer}>
-        <View style={styles.inner} />
+      
+      {/* Floating Navigation Arrow */}
+      {isNavigating && (
+        <Animated.View 
+          style={[
+            styles.floatingArrow,
+            { transform: [{ rotate: `${smoothedBearing}deg` }] }
+          ]}
+        >
+          <Navigation size={20} color={accent} fill={accent} />
+        </Animated.View>
+      )}
+
+      {/* Core Puck */}
+      <View style={[styles.outer, { backgroundColor: MAP_PIN_SECONDARY }]}>
+        <View style={[styles.inner, { backgroundColor: MAP_PIN_SECONDARY }]} />
       </View>
     </View>
   );
@@ -103,58 +94,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  arrowWrap: {
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowBody: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 16,
-    borderRightWidth: 16,
-    borderBottomWidth: 32,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: PRIMARY_LIGHT,
-    transform: [{ translateY: -4 }],
+  floatingArrow: {
+    position: 'absolute',
+    top: -12,
+    zIndex: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-  arrowInner: {
-    position: 'absolute',
-    left: -10,
-    top: 6,
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderBottomWidth: 20,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#fff',
-    opacity: 0.9,
-  },
-  arrowBase: {
-    position: 'absolute',
-    bottom: 22,
-    width: 14,
-    height: 6,
-    borderRadius: 2,
-    backgroundColor: PRIMARY_LIGHT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   pulse: {
     position: 'absolute',
-    width: DOT + 20,
-    height: DOT + 20,
+    width: DOT,
+    height: DOT,
     borderRadius: 9999,
   },
   outer: {

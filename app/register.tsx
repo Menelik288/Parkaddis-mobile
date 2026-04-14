@@ -35,7 +35,17 @@ export default function RegisterScreen() {
             {/* Branding */}
             <View className="mb-10 items-center w-full">
               <View className="flex-row items-center gap-2">
-                <View className="w-12 h-12 rounded-lg items-center justify-center shadow-lg" style={{ backgroundColor: primary }}>
+                <View 
+                  style={{
+                    shadowColor: primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }}
+                  className="w-12 h-12 rounded-lg items-center justify-center" 
+                  style={{ backgroundColor: primary }}
+                >
                   <Text className="text-white font-black text-2xl">P</Text>
                 </View>
                 <View className="flex-row items-center">
@@ -46,7 +56,16 @@ export default function RegisterScreen() {
             </View>
 
             {/* Registration Card */}
-            <View className={`w-full rounded-3xl border overflow-hidden shadow-xl ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200/30'}`}>
+            <View 
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 10,
+              }}
+              className={`w-full rounded-3xl border overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200/30'}`}
+            >
               <View className={`p-8 items-center border-b border-dashed ${isDark ? 'bg-[#022c22] border-white/30' : 'bg-[#064e3b] border-white/30'}`}>
                 <View className="flex-row gap-2 mb-4">
                   <View className="w-12 h-1 rounded-full bg-[#6ee7b7]" />
@@ -121,7 +140,16 @@ export default function RegisterScreen() {
                       onPress={() => setRole('driver')}
                       className="items-center gap-1"
                     >
-                      <View className={`w-12 h-12 rounded-xl items-center justify-center shadow-sm ${role === 'driver' ? 'bg-[#064e3b]' : (isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]')}`}>
+                      <View 
+                        style={{
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.05,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
+                        className={`w-12 h-12 rounded-xl items-center justify-center ${role === 'driver' ? 'bg-[#064e3b]' : (isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]')}`}
+                      >
                         <Car size={24} color={role === 'driver' ? 'white' : '#94a3b8'} />
                       </View>
                       <Text className={`text-[10px] font-extrabold tracking-widest ${role === 'driver' ? 'text-[#064e3b]' : 'text-[#64748b]'}`}>DRIVER</Text>
@@ -131,7 +159,16 @@ export default function RegisterScreen() {
                       onPress={() => setRole('owner')}
                       className="items-center gap-1"
                     >
-                      <View className={`w-12 h-12 rounded-xl items-center justify-center shadow-sm ${role === 'owner' ? 'bg-[#064e3b]' : (isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]')}`}>
+                      <View 
+                        style={{
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.05,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
+                        className={`w-12 h-12 rounded-xl items-center justify-center ${role === 'owner' ? 'bg-[#064e3b]' : (isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]')}`}
+                      >
                         <Warehouse size={24} color={role === 'owner' ? 'white' : '#94a3b8'} />
                       </View>
                       <Text className={`text-[10px] font-extrabold tracking-widest ${role === 'owner' ? 'text-[#064e3b]' : 'text-[#64748b]'}`}>OWNER</Text>
@@ -141,8 +178,15 @@ export default function RegisterScreen() {
 
                 <TouchableOpacity 
                   onPress={handleContinue}
-                  className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg"
-                  style={{ backgroundColor: primary }}
+                  style={{
+                    shadowColor: primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 5,
+                    backgroundColor: primary
+                  }}
+                  className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2"
                 >
                   <Text className="text-white font-extrabold text-base">Continue</Text>
                   <ArrowRight size={18} color="white" />

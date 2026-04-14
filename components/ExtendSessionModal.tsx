@@ -229,7 +229,14 @@ export function ExtendSessionModal({ visible, reservation, isDark, onClose, onSu
                   >
                     <TouchableOpacity
                       onPress={() => setCustomMinutes(m => Math.max(15, m - 15))}
-                      className={`w-12 h-12 rounded-xl items-center justify-center shadow-sm z-10 ${
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 2,
+                        elevation: 1,
+                      }}
+                      className={`w-12 h-12 rounded-xl items-center justify-center z-10 ${
                         isDark ? 'bg-[#0f172a]' : 'bg-white'
                       }`}
                       activeOpacity={0.7}
@@ -254,8 +261,15 @@ export function ExtendSessionModal({ visible, reservation, isDark, onClose, onSu
                     </View>
                     <TouchableOpacity
                       onPress={() => setCustomMinutes(m => Math.min(480, m + 15))}
-                      className={`w-12 h-12 rounded-xl items-center justify-center shadow-lg z-10 ${
-                        isDark ? 'bg-[#34d399] shadow-[#34d399]/20' : 'bg-[#064e3b] shadow-[#064e3b]/30'
+                      style={{
+                        shadowColor: isDark ? '#34d399' : '#064e3b',
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 15,
+                        elevation: 10,
+                      }}
+                      className={`w-12 h-12 rounded-xl items-center justify-center z-10 ${
+                        isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'
                       }`}
                       activeOpacity={0.7}
                     >
@@ -296,9 +310,16 @@ export function ExtendSessionModal({ visible, reservation, isDark, onClose, onSu
               <TouchableOpacity
                 onPress={confirm}
                 disabled={submitting}
-                className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 shadow-xl ${
+                style={{
+                  shadowColor: isDark ? '#34d399' : '#064e3b',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 15,
+                  elevation: 10,
+                }}
+                className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 ${
                   submitting ? 'opacity-70' : ''
-                } ${isDark ? 'bg-[#34d399] shadow-[#34d399]/10' : 'bg-[#064e3b] shadow-[#064e3b]/20'}`}
+                } ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
               >
                 {submitting ? (
                   <ActivityIndicator color={isDark ? '#0f172a' : '#ffffff'} />

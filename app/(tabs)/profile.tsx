@@ -64,7 +64,14 @@ export default function ProfileScreen() {
             <View className="flex-1 bg-black/20">
               <TouchableWithoutFeedback>
                 <View 
-                  className={`absolute top-24 left-5 w-52 rounded-2xl border shadow-xl p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 20,
+                    elevation: 10,
+                  }}
+                  className={`absolute top-24 left-5 w-52 rounded-2xl border p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
                 >
                   <TouchableOpacity 
                     className="flex-row items-center p-3 gap-3 rounded-xl"
@@ -132,7 +139,14 @@ export default function ProfileScreen() {
 
             {/* Personal Information */}
             <TouchableOpacity
-              className={`flex-row items-center justify-between p-4 rounded-3xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
+              className={`flex-row items-center justify-between p-4 rounded-3xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
               activeOpacity={0.7}
             >
               <View className="flex-row items-center gap-4">
@@ -149,7 +163,14 @@ export default function ProfileScreen() {
 
             {/* Vehicle Management */}
             <TouchableOpacity
-              className={`flex-row items-center justify-between p-4 rounded-3xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
+              className={`flex-row items-center justify-between p-4 rounded-3xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
               onPress={() => router.push('/settings/vehicles')}
               activeOpacity={0.7}
             >
@@ -172,7 +193,14 @@ export default function ProfileScreen() {
 
             {/* Digital Wallet */}
             <TouchableOpacity
-              className={`flex-row items-center justify-between p-4 rounded-3xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
+              className={`flex-row items-center justify-between p-4 rounded-3xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
               onPress={() => router.push('/wallet')}
               activeOpacity={0.7}
             >
@@ -217,7 +245,16 @@ export default function ProfileScreen() {
           {/* Branding Header */}
           <View className="mb-10 items-center">
             <View className="flex-row items-center gap-2">
-              <View className={`w-12 h-12 rounded-lg items-center justify-center shadow-md ${isDark ? 'bg-[#34d399]/20' : 'bg-[#064e3b]'}`}>
+              <View 
+                style={{
+                  shadowColor: isDark ? '#34d399' : '#064e3b',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 6,
+                  elevation: 5,
+                }}
+                className={`w-12 h-12 rounded-lg items-center justify-center ${isDark ? 'bg-[#34d399]/20' : 'bg-[#064e3b]'}`}
+              >
                 <Text className="text-white text-2xl font-black italic tracking-tighter">P</Text>
               </View>
               <View className="flex-row items-center">
@@ -228,7 +265,16 @@ export default function ProfileScreen() {
           </View>
 
           {/* Registration Card */}
-          <View className={`w-full rounded-[32px] border overflow-hidden shadow-2xl ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}>
+          <View 
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.15,
+              shadowRadius: 20,
+              elevation: 10,
+            }}
+            className={`w-full rounded-[32px] border overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+          >
             
             <View className={`p-8 items-center border-b border-dashed border-white/30 ${isDark ? 'bg-[#022c22]' : 'bg-[#064e3b]'}`}>
               <View className="flex-row gap-2 mb-4">
@@ -248,7 +294,14 @@ export default function ProfileScreen() {
                 <View className="relative justify-center">
                   <User size={18} color="#94a3b8" className="absolute left-4 z-10" />
                   <TextInput 
-                    className={`h-14 rounded-2xl border px-12 text-sm font-bold shadow-sm ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 1,
+                    }}
+                    className={`h-14 rounded-2xl border px-12 text-sm font-bold ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
                     placeholder="Enter your full name"
                     placeholderTextColor="#94a3b8"
                     value={fullName}
@@ -263,7 +316,14 @@ export default function ProfileScreen() {
                 <View className="relative justify-center">
                   <Mail size={18} color="#94a3b8" className="absolute left-4 z-10" />
                   <TextInput 
-                    className={`h-14 rounded-2xl border px-12 text-sm font-bold shadow-sm ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 1,
+                    }}
+                    className={`h-14 rounded-2xl border px-12 text-sm font-bold ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
                     placeholder="name@example.com"
                     placeholderTextColor="#94a3b8"
                     keyboardType="email-address"
@@ -280,7 +340,14 @@ export default function ProfileScreen() {
                 <View className="relative justify-center">
                   <Lock size={18} color="#94a3b8" className="absolute left-4 z-10" />
                   <TextInput 
-                    className={`h-14 rounded-2xl border px-12 text-sm font-bold shadow-sm ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 1,
+                    }}
+                    className={`h-14 rounded-2xl border px-12 text-sm font-bold ${isDark ? 'bg-[#0f172a] border-[#334155] text-white' : 'bg-[#f8fafc] border-[#f1f5f9] text-[#0f172a]'}`}
                     placeholder="••••••••"
                     placeholderTextColor="#94a3b8"
                     secureTextEntry={!showPassword}
@@ -309,7 +376,16 @@ export default function ProfileScreen() {
                     onPress={() => setRole('user')}
                     activeOpacity={0.8}
                   >
-                    <View className={`w-14 h-14 rounded-2xl items-center justify-center shadow-md ${role === 'user' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : (isDark ? 'bg-[#0f172a] border border-[#334155]' : 'bg-[#f1f5f9]')}`}>
+                    <View 
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 6,
+                        elevation: 5,
+                      }}
+                      className={`w-14 h-14 rounded-2xl items-center justify-center ${role === 'user' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : (isDark ? 'bg-[#0f172a] border border-[#334155]' : 'bg-[#f1f5f9]')}`}
+                    >
                       <Navigation size={22} color={role === 'user' ? '#ffffff' : '#94a3b8'} />
                     </View>
                     <Text className={`text-[9px] font-black tracking-widest ${role === 'user' ? (isDark ? 'text-[#34d399]' : 'text-[#064e3b]') : 'text-[#94a3b8]'}`}>DRIVER</Text>
@@ -320,7 +396,16 @@ export default function ProfileScreen() {
                     onPress={() => setRole('owner')}
                     activeOpacity={0.8}
                   >
-                    <View className={`w-14 h-14 rounded-2xl items-center justify-center shadow-md ${role === 'owner' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : (isDark ? 'bg-[#0f172a] border border-[#334155]' : 'bg-[#f1f5f9]')}`}>
+                    <View 
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 6,
+                        elevation: 5,
+                      }}
+                      className={`w-14 h-14 rounded-2xl items-center justify-center ${role === 'owner' ? (isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]') : (isDark ? 'bg-[#0f172a] border border-[#334155]' : 'bg-[#f1f5f9]')}`}
+                    >
                       <Home size={22} color={role === 'owner' ? '#ffffff' : '#94a3b8'} />
                     </View>
                     <Text className={`text-[9px] font-black tracking-widest ${role === 'owner' ? (isDark ? 'text-[#34d399]' : 'text-[#064e3b]') : 'text-[#94a3b8]'}`}>OWNER</Text>
@@ -337,7 +422,14 @@ export default function ProfileScreen() {
 
               {/* Continue Button */}
               <TouchableOpacity 
-                className={`h-16 rounded-2xl flex-row items-center justify-center gap-2 shadow-xl mt-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`} 
+                style={{
+                  shadowColor: isDark ? '#34d399' : '#064e3b',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                  elevation: 8,
+                }}
+                className={`h-16 rounded-2xl flex-row items-center justify-center gap-2 mt-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`} 
                 onPress={handleContinue}
               >
                 <Text className={`text-base font-black ${isDark ? 'text-[#064e3b]' : 'text-white'}`}>Continue</Text>

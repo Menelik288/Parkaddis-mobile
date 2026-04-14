@@ -74,15 +74,31 @@ export default function BookingsScreen() {
     return (
       <View className="gap-5">
         <View className="flex-row items-center gap-2 px-1">
-          <View className="w-2 h-2 rounded-full bg-[#34d399] shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+          <View 
+            style={{
+              shadowColor: '#34d399',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.6,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+            className="w-2 h-2 rounded-full bg-[#34d399]" 
+          />
           <Text className={`text-[11px] font-black uppercase tracking-[2px] ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
             {isReserved ? 'Upcoming Reservation' : 'Active Now'}
           </Text>
         </View>
         
         <TouchableOpacity 
-          className="rounded-[36px] overflow-hidden shadow-2xl"
-          style={{ backgroundColor: primary }}
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 15 },
+            shadowOpacity: 0.2,
+            shadowRadius: 25,
+            elevation: 12,
+            backgroundColor: primary
+          }}
+          className="rounded-[36px] overflow-hidden"
           onPress={() => router.push('/tickets')}
         >
           <View className="p-7">
@@ -123,7 +139,16 @@ export default function BookingsScreen() {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity className="bg-white px-7 py-3.5 rounded-2xl shadow-md">
+              <TouchableOpacity 
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
+                className="bg-white px-7 py-3.5 rounded-2xl"
+              >
                 <Text className="text-emerald-900 font-black text-xs">
                   {isReserved ? 'SPOT INFO' : 'EXTEND'}
                 </Text>
@@ -150,7 +175,14 @@ export default function BookingsScreen() {
             pastBookings.map((item) => (
               <TouchableOpacity 
                 key={item.id}
-                className={`p-5 rounded-[32px] border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 5,
+                  elevation: 1,
+                }}
+                className={`p-5 rounded-[32px] border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 activeOpacity={0.7}
               >
                 <View className="flex-row items-center gap-4">

@@ -18,7 +18,16 @@ export default function ConfirmationScreen() {
       <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
         {/* Status Section */}
         <View className="items-center py-10 px-6">
-          <View className={`w-20 h-20 rounded-full items-center justify-center mb-6 shadow-xl ${isDark ? 'bg-[#34d399]/10' : 'bg-[#ecfdf5]'}`}>
+          <View 
+            style={{
+              shadowColor: isDark ? secondary : primary,
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.2,
+              shadowRadius: 15,
+              elevation: 10,
+            }}
+            className={`w-20 h-20 rounded-full items-center justify-center mb-6 ${isDark ? 'bg-[#34d399]/10' : 'bg-[#ecfdf5]'}`}
+          >
             <CheckCircle size={48} color={isDark ? secondary : primary} />
           </View>
           <Text className={`text-3xl font-black tracking-tighter mb-2 text-center ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Confirmed!</Text>
@@ -27,7 +36,16 @@ export default function ConfirmationScreen() {
 
         {/* Ticket Card */}
         <View className="px-6 mb-8">
-          <View className={`rounded-[32px] border overflow-hidden shadow-2xl ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}>
+          <View 
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 15 },
+              shadowOpacity: 0.15,
+              shadowRadius: 25,
+              elevation: 12,
+            }}
+            className={`rounded-[32px] border overflow-hidden ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+          >
             
             <View className="items-center p-8 gap-4">
               <View className={`w-[200px] h-[200px] rounded-3xl border border-dashed items-center justify-center relative overflow-hidden ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-[#f8fafc] border-[#f1f5f9]'}`}>
@@ -90,7 +108,14 @@ export default function ConfirmationScreen() {
       {/* Footer Actions */}
       <View className={`absolute bottom-0 left-0 right-0 p-6 pb-10 gap-4 ${isDark ? 'bg-[#0f172a]/95' : 'bg-[#f8fafc]/95'}`}>
         <TouchableOpacity 
-          className={`h-16 rounded-2xl flex-row items-center justify-center gap-2 shadow-2xl ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+          style={{
+            shadowColor: isDark ? '#34d399' : '#064e3b',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.2,
+            shadowRadius: 15,
+            elevation: 10,
+          }}
+          className={`h-16 rounded-2xl flex-row items-center justify-center gap-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
           onPress={() => router.replace('/tickets' as any)}
           activeOpacity={0.8}
         >
@@ -99,7 +124,14 @@ export default function ConfirmationScreen() {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          className={`h-16 rounded-2xl flex-row items-center justify-center gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white shadow-sm border border-[#f1f5f9]'}`}
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 5,
+            elevation: 2,
+          }}
+          className={`h-16 rounded-2xl flex-row items-center justify-center gap-3 ${isDark ? 'bg-[#1e293b]' : 'bg-white border border-[#f1f5f9]'}`}
           activeOpacity={0.8}
         >
           <Share2 size={18} color={isDark ? secondary : primary} />

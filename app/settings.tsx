@@ -44,7 +44,14 @@ export default function SettingsScreen() {
                 <TouchableOpacity 
                   key={iIndex}
                   onPress={() => item.path && router.push(item.path as any)}
-                  className={`flex-row items-center justify-between p-4 rounded-3xl border shadow-sm ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 5,
+                    elevation: 2,
+                  }}
+                  className={`flex-row items-center justify-between p-4 rounded-3xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 >
                   <View className="flex-row items-center gap-4">
                     <View className={`w-11 h-11 rounded-2xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]'}`}>

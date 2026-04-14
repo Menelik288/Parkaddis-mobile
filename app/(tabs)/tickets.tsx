@@ -150,7 +150,14 @@ export default function TicketsScreen() {
           <View className="flex-1 bg-black/20">
             <TouchableWithoutFeedback>
               <View 
-                className={`absolute top-24 left-5 w-52 rounded-2xl border shadow-xl p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 20,
+                  elevation: 10,
+                }}
+                className={`absolute top-24 left-5 w-52 rounded-2xl border p-2 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#e2e8f0]'}`}
               >
                 <TouchableOpacity 
                   className="flex-row items-center p-3 gap-3 rounded-xl"
@@ -243,7 +250,17 @@ export default function TicketsScreen() {
                 const showExtend = isActive && !sessionOver;
 
                 return (
-                  <View key={item.id} className={`rounded-[32px] shadow-xl overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200'}`}>
+                  <View 
+                    key={item.id} 
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 20,
+                      elevation: 8,
+                    }}
+                    className={`rounded-[32px] overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200'}`}
+                  >
                     <View className={`p-6 flex-row justify-between items-start border-b border-dashed relative ${isDark ? 'border-[#334155]' : 'border-slate-200'}`}>
                       <View className={`absolute -left-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
                       <View className={`absolute -right-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
@@ -338,8 +355,15 @@ export default function TicketsScreen() {
                 return (
                   <View 
                     key={item.id}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 8,
+                      elevation: 2,
+                    }}
                     className={`p-5 rounded-[28px] border flex-row justify-between items-center 
-                      ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9] shadow-sm'}`}
+                      ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                   >
                     <View className="flex-row items-center gap-4 flex-1">
                       <View className={`w-12 h-12 rounded-2xl items-center justify-center 

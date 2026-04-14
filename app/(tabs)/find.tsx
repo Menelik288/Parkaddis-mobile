@@ -363,7 +363,14 @@ export default function FindScreen() {
               <View className="flex-col gap-2">
                 <TouchableOpacity 
                   onPress={() => router.back()} 
-                  className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 6,
+                    elevation: 5,
+                  }}
+                  className={`w-12 h-12 rounded-full border items-center justify-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 >
                   <ArrowLeft size={24} color={isDark ? '#34d399' : '#064e3b'} />
                 </TouchableOpacity>
@@ -372,7 +379,14 @@ export default function FindScreen() {
                   <View className="flex-col gap-2">
                     <TouchableOpacity 
                       onPress={openSearch}
-                      className={`w-12 h-12 rounded-full border items-center justify-center shadow-md ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 6,
+                        elevation: 5,
+                      }}
+                      className={`w-12 h-12 rounded-full border items-center justify-center ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                     >
                       <Search size={24} color={isDark ? '#34d399' : '#064e3b'} />
                     </TouchableOpacity>
@@ -418,7 +432,16 @@ export default function FindScreen() {
             {navigation.status === "IDLE" && (
             <View className="relative h-14 justify-end">
               {showDistanceDropdown && (
-                <View className={`absolute bottom-16 left-0 w-36 rounded-2xl p-2 shadow-2xl ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}>
+                <View 
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 20,
+                    elevation: 12,
+                  }}
+                  className={`absolute bottom-16 left-0 w-36 rounded-2xl p-2 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+                >
                   {distanceOptions.map((opt) => (
                     <TouchableOpacity 
                       key={opt.label} 
@@ -433,7 +456,14 @@ export default function FindScreen() {
               <TouchableOpacity 
                 activeOpacity={0.8}
                 onPress={() => setShowDistanceDropdown(!showDistanceDropdown)} 
-                className={`flex-row items-center gap-2 px-4 h-12 rounded-full shadow-lg ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 10,
+                  elevation: 6,
+                }}
+                className={`flex-row items-center gap-2 px-4 h-12 rounded-full ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
               >
                 <Text className={`text-sm font-bold ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>{selectedDistance}</Text>
                 <ChevronDown size={16} color="#94a3b8" />
@@ -469,7 +499,14 @@ export default function FindScreen() {
                     void locateUser();
                   }
                 }}
-                className={`w-14 h-14 rounded-full items-center justify-center shadow-lg border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 10,
+                  elevation: 8,
+                }}
+                className={`w-14 h-14 rounded-full items-center justify-center border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-white'}`}
               >
                 <Target size={26} color={isDark ? '#34d399' : primary} />
               </TouchableOpacity>
@@ -523,8 +560,14 @@ export default function FindScreen() {
                       key={loc.id} 
                       activeOpacity={0.9}
                       onPress={() => router.push({ pathname: '/reserve', params: { id: loc.id } } as any)}
-                      className={`flex-row w-[285px] h-24 rounded-[22px] overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2 shadow-2xl' : 'border-[#064e3b]/10'} ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
-                      style={{ shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 }}
+                      className={`flex-row w-[285px] h-24 rounded-[22px] overflow-hidden border ${selectedLocation?.id === loc.id ? 'border-[#064e3b] border-2' : 'border-[#064e3b]/10'} ${isDark ? 'bg-[#111827]' : 'bg-white'}`}
+                      style={{ 
+                        shadowColor: '#000', 
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: selectedLocation?.id === loc.id ? 0.2 : 0.1, 
+                        shadowRadius: 10, 
+                        elevation: 4 
+                      }}
                     >
                       <View className="p-2">
                         <Image 

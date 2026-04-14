@@ -47,15 +47,23 @@ export default function LoginScreen() {
             {/* Branding */}
             <View className="mb-10 items-center w-full">
               <View className="flex-row items-center gap-2 mb-8">
-                <View className="w-12 h-12 rounded-lg items-center justify-center shadow-lg" style={{ backgroundColor: primary }}>
-                  <Text className="text-white font-black text-2xl">P</Text>
-                </View>
+                <View 
+                  style={{
+                    shadowColor: primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 5,
+                    backgroundColor: primary
+                  }}
+                  className="w-12 h-12 rounded-xl items-center justify-center"
+                />
                 <View className="flex-row items-center">
-                  <Text className="text-xl font-black tracking-tighter" style={{ color: primary }}>PARK</Text>
-                  <Text className="text-xl font-black tracking-tighter text-[#94a3b8]">ADDIS</Text>
+                  <Text className="text-2xl font-black tracking-tighter" style={{ color: primary }}>PARK</Text>
+                  <Text className="text-2xl font-black tracking-tighter text-[#94a3b8]">ADDIS</Text>
                 </View>
               </View>
-              <Text className={`text-[28px] font-bold tracking-tight ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>
+              <Text className={`text-[32px] font-black tracking-tight ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>
                 Log in to ParkAddis
               </Text>
             </View>
@@ -118,8 +126,15 @@ export default function LoginScreen() {
               <TouchableOpacity 
                 onPress={handleLogin}
                 disabled={loading}
-                className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg"
-                style={{ backgroundColor: primary }}
+                style={{
+                  shadowColor: primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 8,
+                  elevation: 5,
+                  backgroundColor: primary
+                }}
+                className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2"
               >
                 <Text className="text-white font-bold text-base">{loading ? 'Signing in...' : 'Sign In'}</Text>
                 {!loading && <ArrowRight size={18} color="white" />}

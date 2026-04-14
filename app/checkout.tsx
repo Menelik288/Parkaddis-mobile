@@ -157,7 +157,14 @@ export default function CheckoutScreen() {
         </View>
 
         <View
-          className={`w-full rounded-[40px] shadow-2xl relative overflow-hidden mb-10 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 15 },
+            shadowOpacity: 0.1,
+            shadowRadius: 25,
+            elevation: 10,
+          }}
+          className={`w-full rounded-[40px] relative overflow-hidden mb-10 ${isDark ? 'bg-[#1e293b]' : 'bg-white'}`}
         >
           <View className="p-8">
             <View className="flex-row justify-between items-center mb-8">
@@ -193,8 +200,15 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             onPress={handleWalletPay}
             disabled={payLoading}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 5,
+              elevation: 2,
+            }}
             className={`flex-row items-center justify-between p-6 rounded-3xl border ${
-              isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100 shadow-sm'
+              isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'
             }`}
           >
             <View className="flex-row items-center gap-4 flex-1">
@@ -217,8 +231,15 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             onPress={handleChapaPay}
             disabled={payLoading}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 5,
+              elevation: 2,
+            }}
             className={`flex-row items-center justify-between p-6 rounded-3xl border ${
-              isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100 shadow-sm'
+              isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'
             }`}
           >
             <View className="flex-row items-center gap-4 flex-1">

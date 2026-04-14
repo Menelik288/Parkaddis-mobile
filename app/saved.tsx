@@ -50,7 +50,16 @@ export default function SavedScreen() {
 
       <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
-        <View className={`flex-row items-center border rounded-2xl px-4 h-14 shadow-sm mb-8 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}>
+        <View 
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 5,
+            elevation: 2,
+          }}
+          className={`flex-row items-center border rounded-2xl px-4 h-14 mb-8 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+        >
           <Search size={18} color="#94a3b8" />
           <TextInput 
             className={`flex-1 ml-3 text-sm font-bold ${isDark ? 'text-white' : 'text-[#0f172a]'}`}
@@ -65,13 +74,29 @@ export default function SavedScreen() {
             savedLocations.map((item) => (
               <TouchableOpacity 
                 key={item.id} 
-                className={`rounded-[32px] overflow-hidden shadow-2xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 20,
+                  elevation: 5,
+                }}
+                className={`rounded-[32px] overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 activeOpacity={0.9}
                 onPress={() => router.push({ pathname: '/reserve', params: { id: item.id } } as any)}
               >
                 <View className="h-44 w-full relative">
                   <Image source={{ uri: item.image }} className="w-full h-full" resizeMode="cover" />
-                  <TouchableOpacity className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 items-center justify-center shadow-lg">
+                  <TouchableOpacity 
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 8,
+                      elevation: 3,
+                    }}
+                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 items-center justify-center"
+                  >
                     <Bookmark size={20} color="#064e3b" fill="#064e3b" />
                   </TouchableOpacity>
                 </View>

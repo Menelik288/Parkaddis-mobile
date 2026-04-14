@@ -8,11 +8,13 @@ import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { Redirect } from 'expo-router';
 import { BrandedSplash } from '@/components/BrandedSplash';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user, isLoading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (!user && !isLoading) {
     return <Redirect href="/login" />;
@@ -31,11 +33,11 @@ export default function TabLayout() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 95,
+            height: 64 + insets.bottom,
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
-            paddingBottom: 10,
-            paddingTop: 10,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+            paddingTop: 12,
             borderTopWidth: 0,
             backgroundColor: 'transparent',
             elevation: 0,
@@ -52,7 +54,7 @@ export default function TabLayout() {
                 style={StyleSheet.absoluteFill} 
               />
               <View style={[StyleSheet.absoluteFill, { 
-                backgroundColor: isDark ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)',
+                backgroundColor: isDark ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.8)',
                 borderTopWidth: 0.5,
                 borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)'
               }]} />
