@@ -28,12 +28,14 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Reduced delay for faster transition while still showing branding
+        await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (e) {
         console.warn(e);
       } finally {
         setAppIsReady(true);
         await SplashScreen.hideAsync();
+        // Keep the JS overlay for the duration of the animation
         setTimeout(() => setShowSplash(false), 800);
       }
     }

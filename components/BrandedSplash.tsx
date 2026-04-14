@@ -1,14 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, useColorScheme } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const { width } = Dimensions.get('window');
 
 /**
  * BrandedSplash Component
  * 
  * A high-fidelity, code-based splash screen for ParkAddis.
- * features a theme-aware layout that transitions seamlessly from the native splash.
  */
 export const BrandedSplash = ({ onFinish }: { onFinish?: () => void }) => {
   const colorScheme = useColorScheme();
@@ -101,13 +97,11 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 48,
-    fontFamily: 'System',
     fontWeight: '900',
     letterSpacing: -2,
   },
   brandSub: {
     fontSize: 48,
-    fontFamily: 'System',
     fontWeight: '900',
     letterSpacing: -2,
   },
