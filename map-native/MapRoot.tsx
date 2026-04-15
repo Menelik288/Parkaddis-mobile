@@ -1,7 +1,7 @@
-import { View, StyleSheet } from 'react-native';
-import { useMap } from './MapProvider';
-import React, { useCallback, useEffect } from 'react';
-import MapLibreGL from '@maplibre/maplibre-react-native';
+import MapLibreGL from "@maplibre/maplibre-react-native";
+import React, { useCallback, useEffect } from "react";
+import { StyleSheet, View } from "react-native";
+import { useMap } from "./MapProvider";
 
 interface MapRootProps {
   children?: React.ReactNode;
@@ -11,20 +11,29 @@ interface MapRootProps {
 const DEFAULT_CENTER: [number, number] = [38.75242, 9.03584];
 
 const MapRoot = ({ children }: MapRootProps) => {
-  const { cameraRef, mapViewHasLoadedRef, navigation, idleRegionRef } = useMap();
+  const {
+    cameraRef,
+    mapViewHasLoadedRef,
+    navigation,
+    idleRegionRef,
+    currentCenterRef,
+  } = useMap();
 
   const onRegionDidChange = useCallback(
-    (feature: { properties?: { visibleBounds?: [number[], number[]] } }) => {
-      if (navigation.status !== 'IDLE') return;
-      const vb = feature.properties?.visibleBounds;
-      if (!vb || vb.length < 2) return;
-      const [ne, sw] = vb;
-      idleRegionRef.current = {
-        ne: [ne[0], ne[1]] as [number, number],
-        sw: [sw[0], sw[1]] as [number, number],
-      };
+    (region: any) => {
+      // Update idle region only when idle
+      if (navigation.status === "IDLE") {
+        const vb = region.properties?.visibleBounds;
+        if (vb && vb.length >= 2) {
+          const [ne, sw] = vb;
+          idleRegionRef.current = {
+            ne: [ne[0], ne[1]] as [number, number],
+            sw: [sw[0], sw[1]] as [number, number],
+          };
+        }
+      }
     },
-    [navigation.status, idleRegionRef]
+    [navigation.status, idleRegionRef],
   );
 
   useEffect(() => {
@@ -48,22 +57,29 @@ const MapRoot = ({ children }: MapRootProps) => {
         }}
       >
         {/* STABLE Camera */}
-        <MapLibreGL.Camera 
+        <MapLibreGL.Camera
           ref={cameraRef}
           centerCoordinate={DEFAULT_CENTER}
           zoomLevel={14.5}
+          onCameraChanged={(camera) => {
+            console.log("onCameraChanged:", camera.centerCoordinate);
+            currentCenterRef.current = {
+              lng: camera.centerCoordinate[0],
+              lat: camera.centerCoordinate[1],
+            };
+          }}
         />
-        
+
         {children}
       </MapLibreGL.MapView>
 
       {/* Antique / Vintage Tint Overlay (Restored original brownish color) */}
-      <View 
-        pointerEvents="none" 
+      <View
+        pointerEvents="none"
         style={[
-          StyleSheet.absoluteFill, 
-          { backgroundColor: 'rgba(139, 69, 19, 0.12)', zIndex: 10 }
-        ]} 
+          StyleSheet.absoluteFill,
+          { backgroundColor: "rgba(139, 69, 19, 0.12)", zIndex: 10 },
+        ]}
       />
     </View>
   );
@@ -77,21 +93,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fallbackContainer: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
     padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   fallbackTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontWeight: "700",
+    color: "#0f172a",
     marginBottom: 8,
   },
   fallbackText: {
     fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
+    color: "#64748b",
+    textAlign: "center",
     lineHeight: 20,
   },
 });

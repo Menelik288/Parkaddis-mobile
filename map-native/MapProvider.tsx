@@ -1,10 +1,21 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
-import * as Location from "expo-location";
-import { InteractionManager } from "react-native";
 import { ADDIS_ABABA_CENTER } from "@/lib/location";
-import { NavigationState, NavigationActions, Coords } from "./navigation/NavigationTypes";
-import { useNavigationState } from "./hooks/useNavigationState";
+import * as Location from "expo-location";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useBearingSmoothing } from "./hooks/useBearingSmoothing";
+import { useNavigationState } from "./hooks/useNavigationState";
+import {
+  Coords,
+  NavigationActions,
+  NavigationState,
+} from "./navigation/NavigationTypes";
 
 /** Last visible map bounds while status is IDLE (for restoring after pin / preview dismiss). */
 export type MapRegionSnapshot = {
@@ -26,6 +37,8 @@ interface MapContextType {
   updateSmoothedBearing: (deg: number) => void;
   /** Updated from MapView while IDLE — used to restore the view when clearing route preview. */
   idleRegionRef: React.MutableRefObject<MapRegionSnapshot | null>;
+  /** Current camera center coordinates */
+  currentCenterRef: React.MutableRefObject<Coords | null>;
 }
 
 export const MapContext = createContext<MapContextType | null>(null);
@@ -34,60 +47,78 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [coords, setCoords] = useState<Coords | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const {
-    navigation,
-    setNavigationStatus,
-    setDestination,
-    setRouteGeometry,
-    updateNavigationMetrics,
-    setBearing,
-    setUserCoords,
-    previewDestination,
-    clearNavigation,
-    startNavigation,
-    stopNavigation,
-  } = useNavigationState();
+  const { navigation, actions } = useNavigationState();
 
-  const { smoothedBearing, updateBearing: updateSmoothedBearing } = useBearingSmoothing();
+  const { smoothedBearing, updateBearing: updateSmoothedBearing } =
+    useBearingSmoothing();
 
   const cameraRef = React.useRef<any>(null);
   const mapViewHasLoadedRef = React.useRef(false);
   const idleRegionRef = React.useRef<MapRegionSnapshot | null>(null);
+  const currentCenterRef = React.useRef<Coords | null>(null);
 
-  const scheduleFlyToCoords = useCallback((lng: number, lat: number) => {
-    const run = () => {
-      cameraRef.current?.setCamera?.({
-        centerCoordinate: [lng, lat],
-        zoomLevel: 15.5,
-        animationDuration: 2000,
-        animationMode: 'flyTo',
-        pitch: 0,
-        heading: 0,
-      });
-    };
-    const start = () => {
-      InteractionManager.runAfterInteractions(() => {
-        requestAnimationFrame(run);
-      });
-    };
-    if (mapViewHasLoadedRef.current) {
-      start();
-      return;
-    }
-    let ticks = 0;
-    const poll = setInterval(() => {
-      ticks += 1;
-      if (mapViewHasLoadedRef.current || ticks >= 40) {
-        clearInterval(poll);
-        start();
-      }
-    }, 50);
-  }, []);
+  const scheduleFlyToCoords = useCallback(
+    (
+      lng: number,
+      lat: number,
+      options?: {
+        zoom?: number;
+        duration?: number;
+        mode?: "flyTo" | "easeTo" | "moveTo";
+      },
+    ) => {
+      const { zoom = 15.5, duration = 1000, mode = "easeTo" } = options || {};
+
+      const run = () => {
+        console.log(
+          "scheduleFlyToCoords: run called, mapLoaded:",
+          mapViewHasLoadedRef.current,
+          "cameraReady:",
+          !!cameraRef.current?.setCamera,
+        );
+        if (!mapViewHasLoadedRef.current) {
+          console.log("scheduleFlyToCoords: map not loaded, skipping");
+          return;
+        }
+        if (!cameraRef.current?.setCamera) {
+          console.log("scheduleFlyToCoords: camera not ready, skipping");
+          return;
+        }
+        console.log(
+          "scheduleFlyToCoords: setting camera to",
+          [lng, lat],
+          "zoom",
+          zoom,
+          "duration",
+          duration,
+          "mode",
+          mode,
+        );
+        try {
+          cameraRef.current.setCamera({
+            centerCoordinate: [lng, lat],
+            zoomLevel: zoom,
+            animationDuration: duration,
+            animationMode: mode,
+            pitch: 0,
+            heading: 0,
+          });
+          console.log("scheduleFlyToCoords: setCamera called successfully");
+        } catch (e) {
+          console.log("scheduleFlyToCoords: setCamera error:", e);
+        }
+      };
+
+      // Schedule camera movement with animation frame for consistency
+      requestAnimationFrame(run);
+    },
+    [],
+  );
 
   const locateUser = useCallback(async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.error('Permission to access location was denied');
+    if (status !== "granted") {
+      console.error("Permission to access location was denied");
       setIsLoading(false);
       return;
     }
@@ -101,10 +132,28 @@ export function MapProvider({ children }: { children: ReactNode }) {
         lat: position.coords.latitude,
         accuracy: position.coords.accuracy || undefined,
       };
+
+      // Update coordinates
       setCoords(newCoords);
-      setUserCoords(newCoords);
-      clearNavigation();
-      scheduleFlyToCoords(newCoords.lng, newCoords.lat);
+
+      console.log("locateUser: newCoords", newCoords);
+      console.log("locateUser: currentCenter", currentCenterRef.current);
+
+      // Only fly if not already centered on user location
+      const currentCenter = currentCenterRef.current;
+      const shouldFly =
+        !currentCenter ||
+        Math.abs(currentCenter.lng - newCoords.lng) > 0.0001 ||
+        Math.abs(currentCenter.lat - newCoords.lat) > 0.0001;
+
+      console.log("locateUser: shouldFly", shouldFly);
+
+      if (shouldFly) {
+        console.log("locateUser: flying to", newCoords.lng, newCoords.lat);
+        scheduleFlyToCoords(newCoords.lng, newCoords.lat);
+      } else {
+        console.log("locateUser: already centered, not flying");
+      }
     } catch (err) {
       console.error("Location error:", err);
       const defaultCoords = {
@@ -112,58 +161,43 @@ export function MapProvider({ children }: { children: ReactNode }) {
         lat: ADDIS_ABABA_CENTER.lat,
       };
       setCoords(defaultCoords);
-      setUserCoords(defaultCoords);
       scheduleFlyToCoords(defaultCoords.lng, defaultCoords.lat);
     } finally {
       setIsLoading(false);
     }
-  }, [setUserCoords, clearNavigation, scheduleFlyToCoords]);
+  }, [scheduleFlyToCoords]);
 
   useEffect(() => {
     locateUser();
   }, [locateUser]);
 
-  const actions = useMemo(() => ({
-    setNavigationStatus,
-    setDestination,
-    setRouteGeometry,
-    updateNavigationMetrics,
-    setBearing,
-    setUserCoords,
-    previewDestination,
-    clearNavigation,
-    startNavigation,
-    stopNavigation,
-  }), [
-    setNavigationStatus,
-    setDestination,
-    setRouteGeometry,
-    updateNavigationMetrics,
-    setBearing,
-    setUserCoords,
-    previewDestination,
-    clearNavigation,
-    startNavigation,
-    stopNavigation,
-  ]);
-
-  const contextValue = useMemo(() => ({
-    coords,
-    locateUser,
-    isLoading,
-    navigation,
-    actions,
-    cameraRef,
-    mapViewHasLoadedRef,
-    smoothedBearing,
-    updateSmoothedBearing,
-    idleRegionRef,
-  }), [coords, locateUser, isLoading, navigation, actions, smoothedBearing, updateSmoothedBearing]);
+  const contextValue = useMemo(
+    () => ({
+      coords,
+      locateUser,
+      isLoading,
+      navigation,
+      actions,
+      cameraRef,
+      mapViewHasLoadedRef,
+      smoothedBearing,
+      updateSmoothedBearing,
+      idleRegionRef,
+      currentCenterRef,
+    }),
+    [
+      coords,
+      locateUser,
+      isLoading,
+      navigation,
+      actions,
+      smoothedBearing,
+      updateSmoothedBearing,
+    ],
+  );
 
   return (
-    <MapContext.Provider value={contextValue}>
-      {children}
-    </MapContext.Provider>
+    <MapContext.Provider value={contextValue}>{children}</MapContext.Provider>
   );
 }
 

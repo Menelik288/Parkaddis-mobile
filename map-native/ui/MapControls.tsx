@@ -1,19 +1,24 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Crosshair, Layers, Map as MapIcon } from 'lucide-react-native';
-import { useMap } from '../MapProvider';
+import { Crosshair, Layers, Map as MapIcon } from "lucide-react-native";
+import React from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useMap } from "../MapProvider";
 
 export function MapControls() {
-  const { locateUser, navigation } = useMap();
+  const { locateUser, navigation, actions } = useMap();
 
   // Hide common controls during active navigation to reduce clutter
   if (navigation.status === "NAVIGATING") return null;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.button}
-        onPress={() => locateUser()}
+        onPress={() => {
+          if (navigation.status !== "IDLE") {
+            actions.clearNavigation();
+          }
+          locateUser();
+        }}
       >
         <Crosshair size={22} color="#475569" />
       </TouchableOpacity>
@@ -31,19 +36,19 @@ export function MapControls() {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
     right: 20,
-    top: '35%',
+    top: "35%",
     gap: 12,
   },
   button: {
     width: 48,
     height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,

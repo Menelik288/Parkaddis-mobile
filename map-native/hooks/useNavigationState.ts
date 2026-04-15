@@ -1,5 +1,9 @@
-import { useState, useCallback } from "react";
-import { NavigationStatus, NavigationState, Coords } from "../navigation/NavigationTypes";
+import { useCallback, useMemo, useState } from "react";
+import {
+  Coords,
+  NavigationState,
+  NavigationStatus,
+} from "../navigation/NavigationTypes";
 
 export function useNavigationState() {
   const [navigation, setNavigation] = useState<NavigationState>({
@@ -24,13 +28,16 @@ export function useNavigationState() {
     setNavigation((prev) => ({ ...prev, routeGeometry }));
   }, []);
 
-  const updateNavigationMetrics = useCallback((distance: number, duration: number) => {
-    setNavigation((prev) => ({
-      ...prev,
-      remainingDistance: distance,
-      remainingDuration: duration,
-    }));
-  }, []);
+  const updateNavigationMetrics = useCallback(
+    (distance: number, duration: number) => {
+      setNavigation((prev) => ({
+        ...prev,
+        remainingDistance: distance,
+        remainingDuration: duration,
+      }));
+    },
+    [],
+  );
 
   const setBearing = useCallback((bearing: number) => {
     setNavigation((prev) => ({ ...prev, bearing }));
@@ -66,6 +73,34 @@ export function useNavigationState() {
 
   const stopNavigation = clearNavigation;
 
+  // Memoize actions to prevent unnecessary re-renders
+  const actions = useMemo(
+    () => ({
+      setNavigationStatus,
+      setDestination,
+      setRouteGeometry,
+      updateNavigationMetrics,
+      setBearing,
+      setUserCoords,
+      previewDestination,
+      clearNavigation,
+      startNavigation,
+      stopNavigation,
+    }),
+    [
+      setNavigationStatus,
+      setDestination,
+      setRouteGeometry,
+      updateNavigationMetrics,
+      setBearing,
+      setUserCoords,
+      previewDestination,
+      clearNavigation,
+      startNavigation,
+      stopNavigation,
+    ],
+  );
+
   return {
     navigation,
     setNavigationStatus,
@@ -78,5 +113,6 @@ export function useNavigationState() {
     clearNavigation,
     startNavigation,
     stopNavigation,
+    actions,
   };
 }

@@ -72,15 +72,14 @@ export default function RegisterStep2Screen() {
             <View className="mb-10 items-center w-full">
               <View className="flex-row items-center gap-2">
                 <View 
-                  style={{
+                  className="w-12 h-12 rounded-lg items-center justify-center" 
+                  style={[{
                     shadowColor: primary,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.2,
                     shadowRadius: 8,
                     elevation: 5,
-                  }}
-                  className="w-12 h-12 rounded-lg items-center justify-center" 
-                  style={{ backgroundColor: primary }}
+                  }, { backgroundColor: primary }]}
                 >
                   <Text className="text-white font-black text-2xl">P</Text>
                 </View>
