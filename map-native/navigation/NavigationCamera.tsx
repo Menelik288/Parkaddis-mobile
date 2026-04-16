@@ -23,9 +23,11 @@ export function NavigationCamera() {
   const lastCameraZoomRef = useRef<number | null>(null);
 
   // Debounced camera operation to prevent rapid successive calls
-  const pendingCameraOpRef = useRef<{ id: string; fn: () => void } | null>(
-    null,
-  );
+  const pendingCameraOpRef = useRef<{
+    id: string;
+    fn: () => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   const executeCameraOperation = useCallback(
     (id: string, operation: () => void) => {
@@ -120,21 +122,21 @@ export function NavigationCamera() {
             cameraRef.current.setCamera({
               centerCoordinate: targetCoords,
               zoomLevel: 17.5,
-              pitch: 0,
-              heading: 0,
-              animationMode: "flyTo",
-              animationDuration: 2500,
+              pitch: 0, // Disabled 3D pitch to optimize rendering limits on older Androids
+              heading: smoothedBearing,
+              animationMode: "easeTo",
+              animationDuration: 1500,
             });
           } else {
-            // Subsequent updates only move position, preserve user's current zoom
+            // Subsequent updates only move position, preserve user's current zoom and pitch
             const currentZoom = userNavigationZoomRef.current || 17.5;
             cameraRef.current.setCamera({
               centerCoordinate: targetCoords,
               zoomLevel: currentZoom,
-              pitch: 0,
-              heading: 0,
-              animationMode: "easeTo",
-              animationDuration: 1500,
+              pitch: 0, // Keep flat overhead map view
+              heading: smoothedBearing,
+              animationMode: "moveTo",
+              animationDuration: 1000,
             });
           }
           lastTarget.current = stateKey;
@@ -246,7 +248,7 @@ export function NavigationCamera() {
             zoomLevel: 16.5,
             pitch: 0,
             heading: 0,
-            animationMode: "flyTo",
+            animationMode: "easeTo",
             animationDuration: 1200,
           });
           lastTarget.current = null;
@@ -301,19 +303,6 @@ export function NavigationCamera() {
           userNavigationZoomRef.current = 17.5;
         });
     }
-
-    // Listen to camera changes
-    const cameraChangeSubscription =
-      cameraRef.current?.onCameraChanged?.(handleCameraChange);
-
-    return () => {
-      if (
-        cameraChangeSubscription &&
-        typeof cameraChangeSubscription.remove === "function"
-      ) {
-        cameraChangeSubscription.remove();
-      }
-    };
   }, [navigation.status, cameraRef]);
 
   return null;

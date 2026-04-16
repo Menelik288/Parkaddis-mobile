@@ -95,19 +95,60 @@ export default function CheckoutScreen() {
   const handleChapaPay = async () => {
     if (!reservation) return;
     const qr = getReservationQrToken(reservation);
+    console.log('[Checkout] Starting Chapa payment:', {
+      reservationId: reservation.id,
+      reservationStatus: reservation.status,
+      qrToken: qr ?? '⚠️ NOT FOUND on reservation object',
+      reservationKeys: Object.keys(reservation as any),
+    });
     setPayLoading(true);
     try {
       const response = await paymentService.createDirectPayment({
         reservationId: reservation.id,
         qrToken: qr,
       });
+      console.log('[Checkout] Payment service response:', response);
+
+      // Zero-cost session: backend already marked as PAID, go straight to confirmation
+      if (response.isFree) {
+        router.replace({
+          pathname: '/confirmation',
+          params: { status: 'paid', id: reservation.id },
+        } as any);
+        return;
+      }
+
       if (response.checkout_url) {
+        // Opens Chapa inside the app (Safari VC / Chrome Custom Tabs)
         await WebBrowser.openBrowserAsync(response.checkout_url);
-        Alert.alert(
-          'Returned from payment',
-          'If you completed checkout, your session will update shortly. You can open Tickets to verify.',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)/tickets' as any) }]
-        );
+
+        // Browser closed — re-fetch the reservation to check if payment completed
+        try {
+          const sessions = await reservationService.getAllUserSessions();
+          const updated = sessions.find(r => r.id === reservation.id);
+          const paidStatus = updated?.status?.toUpperCase();
+
+          if (paidStatus === 'PAID' || paidStatus === 'COMPLETED') {
+            router.replace({
+              pathname: '/confirmation',
+              params: { status: 'paid', id: reservation.id },
+            } as any);
+          } else {
+            // Payment may still be processing via webhook — let the user know
+            Alert.alert(
+              'Payment submitted',
+              'Your payment is being processed. Check Tickets in a moment to confirm.',
+              [{ text: 'Open Tickets', onPress: () => router.replace('/(tabs)/tickets' as any) }]
+            );
+          }
+        } catch {
+          // Can't verify, but don't block the user
+          Alert.alert(
+            'Payment submitted',
+            'Your payment may still be processing. Check the Tickets tab to confirm.',
+            [{ text: 'OK', onPress: () => router.replace('/(tabs)/tickets' as any) }]
+          );
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to open payment';

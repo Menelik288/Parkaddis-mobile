@@ -70,7 +70,7 @@ export function useGeolocationWatcher() {
 
         passiveSubRef.current = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.Balanced,
+            accuracy: Location.Accuracy.High,
             timeInterval: 2000,
             distanceInterval: 5,
           },
@@ -126,22 +126,20 @@ export function useGeolocationWatcher() {
       }
 
       try {
-        // Magnetometer for device orientation
-        const isAvailable = await Magnetometer.isAvailableAsync();
-        if (isAvailable) {
-          if (magnetometerSubRef.current) {
-            magnetometerSubRef.current.remove();
-          }
-
-          magnetometerSubRef.current = Magnetometer.addListener((data) => {
-            let angle = Math.atan2(data.x, data.y) * (180 / Math.PI);
-            if (angle < 0) angle += 360;
-            actions.setBearing(angle);
-          });
-          Magnetometer.setUpdateInterval(100);
+        // Native Compass Heading (automatically corrects for true north and device orientation)
+        if (magnetometerSubRef.current) {
+          magnetometerSubRef.current.remove();
         }
+
+        magnetometerSubRef.current = await Location.watchHeadingAsync((headingData) => {
+          // Use trueHeading if available, otherwise fallback to magnetic heading
+          const angle = headingData.trueHeading >= 0 ? headingData.trueHeading : headingData.magHeading;
+          if (angle >= 0) {
+            actions.setBearing(angle);
+          }
+        });
       } catch (e) {
-        console.warn("Magnetometer failed", e);
+        console.warn("Compass watcher failed", e);
       }
     };
 

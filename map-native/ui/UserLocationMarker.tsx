@@ -1,25 +1,21 @@
-import { Navigation } from "lucide-react-native";
+import { Navigation2 } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
   StyleSheet,
   View,
-  useColorScheme,
 } from "react-native";
 import { useMap } from "../MapProvider";
 import { MAP_PIN_SECONDARY } from "./mapPinTokens";
 
-const PRIMARY_LIGHT = "#064e3b";
-const PRIMARY_DARK = "#34d399";
+
 
 /**
  * User puck; in navigation mode shows a heading arrow above the dot.
  * Map stays north-up, arrow shows direction of travel.
  */
 export function UserLocationMarker() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { navigation, smoothedBearing } = useMap();
   const isNavigating = navigation.status === "NAVIGATING";
 
@@ -54,50 +50,33 @@ export function UserLocationMarker() {
     return () => loop.stop();
   }, [pulseOpacity, pulseScale]);
 
-  const accent = isDark ? PRIMARY_DARK : PRIMARY_LIGHT;
-
-  // Position arrow slightly in front of the puck based on bearing
-  const offset = 18;
-  const rad = (smoothedBearing * Math.PI) / 180;
-  const dx = Math.sin(rad) * offset;
-  const dy = -Math.cos(rad) * offset;
-
   return (
     <View style={styles.wrap} pointerEvents="none">
       {/* Pulse Accuracy Indicator */}
-      <Animated.View
-        style={[
-          styles.pulse,
-          {
-            backgroundColor: MAP_PIN_SECONDARY,
-            transform: [{ scale: pulseScale }],
-            opacity: pulseOpacity,
-          },
-        ]}
-      />
-
-      {/* Floating Navigation Arrow */}
-      {isNavigating && (
+      {!isNavigating && (
         <Animated.View
           style={[
-            styles.floatingArrow,
+            styles.pulse,
             {
-              transform: [
-                { translateX: dx },
-                { translateY: dy },
-                { rotate: `${smoothedBearing}deg` },
-              ],
+              backgroundColor: MAP_PIN_SECONDARY,
+              transform: [{ scale: pulseScale }],
+              opacity: pulseOpacity,
             },
           ]}
-        >
-          <Navigation size={20} color={accent} fill={accent} />
-        </Animated.View>
+        />
       )}
 
-      {/* Core Puck */}
-      <View style={[styles.outer, { backgroundColor: MAP_PIN_SECONDARY }]}>
-        <View style={[styles.inner, { backgroundColor: MAP_PIN_SECONDARY }]} />
-      </View>
+      {isNavigating ? (
+        <View style={styles.navArrowContainer}>
+          <View style={{ transform: [{ rotate: `${smoothedBearing}deg` }] }}>
+            <Navigation2 size={24} color={MAP_PIN_SECONDARY} fill={MAP_PIN_SECONDARY} />
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.outer, { backgroundColor: MAP_PIN_SECONDARY }]}>
+          <View style={[styles.inner, { backgroundColor: MAP_PIN_SECONDARY }]} />
+        </View>
+      )}
     </View>
   );
 }
@@ -111,17 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  floatingArrow: {
-    position: "absolute",
-    top: 18,
-    left: 18,
-    zIndex: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
+
   pulse: {
     position: "absolute",
     width: DOT,
@@ -150,5 +119,18 @@ const styles = StyleSheet.create({
     height: DOT - 8,
     borderRadius: 9999,
     backgroundColor: MAP_PIN_SECONDARY,
+  },
+  navArrowContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
 });

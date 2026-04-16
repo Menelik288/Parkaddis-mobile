@@ -14,6 +14,9 @@ import {
   Easing,
   StyleSheet,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -205,8 +208,8 @@ export default function WalletScreen() {
 
   const handleTopUp = async () => {
     const amt = parseFloat(topUpAmount);
-    if (!Number.isFinite(amt) || amt < 10) {
-      Alert.alert('Invalid amount', 'Enter at least ETB 10 to top up.');
+    if (!Number.isFinite(amt) || amt < 1) {
+      Alert.alert('Invalid amount', 'Enter at least ETB 1 to top up.');
       return;
     }
     setTopUpLoading(true);
@@ -217,8 +220,15 @@ export default function WalletScreen() {
       setLastTopUpTxRef(response.tx_ref || '');
       if (response.checkout_url) {
         await WebBrowser.openBrowserAsync(response.checkout_url);
-        await fetchWalletData();
-        setIsSuccess(true);
+        
+        // After browser closes, verify the actual status from the backend
+        if (wallet?.id && response.tx_ref) {
+          const isConfirmed = await walletService.verifyPayment(wallet.id, response.tx_ref);
+          if (isConfirmed) {
+            await fetchWalletData();
+            setIsSuccess(true);
+          }
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not start top-up';
@@ -411,359 +421,251 @@ export default function WalletScreen() {
         </View>
       </ScrollView>
 
-      {/* EXACT STITCH TOP UP MODAL (Using Absolute View for consistency) */}
+      {/* NEW MINIMALIST TOP UP MODAL (Matching Reference Image) */}
       {showTopUp && (
         <View className="absolute inset-0 z-[100] justify-end">
-          
-          {/* Dark Overlay for Top-Up */}
-          {!isSuccess && (
-             <TouchableWithoutFeedback onPress={() => !isSuccess && closeTopUp()}>
-               <View className="absolute inset-0 bg-black/40" />
-             </TouchableWithoutFeedback>
-          )}
+          <TouchableWithoutFeedback onPress={() => !isSuccess && closeTopUp()}>
+            <View className="absolute inset-0 bg-black/50" />
+          </TouchableWithoutFeedback>
 
-          <Animated.View
-            style={{
-              transform: [{ translateY: slideAnim }],
-              paddingBottom: Math.max(insets.bottom, 20),
-            }}
-            className={`rounded-t-[40px] pt-4 px-6 relative ${
-              isSuccess
-                ? `flex-1 min-h-[65%] ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`
-                : `${isDark ? 'bg-[#0f172a]' : 'bg-white'} min-h-[55%]`
-            }`}
-          >
-            {!isSuccess && (
-              <>
-                <View className="w-full items-center mb-4">
-                  <View className={`w-12 h-1.5 rounded-full ${isDark ? 'bg-[#334155]' : 'bg-slate-200'}`} />
-                </View>
+          <View className="flex-1 justify-end">
+            <Animated.View
+              style={{
+                transform: [{ translateY: slideAnim }],
+                maxHeight: Dimensions.get('window').height * 0.8,
+                paddingBottom: Math.max(insets.bottom, 20),
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 20,
+              }}
+              className={`rounded-t-[40px] pt-8 px-8 ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
+            >
+              {!isSuccess && (
                 <TouchableOpacity
                   onPress={closeTopUp}
-                  className={`absolute top-6 right-6 w-10 h-10 items-center justify-center rounded-full z-20 ${
-                    isDark ? 'bg-[#1e293b]' : 'bg-slate-100'
-                  }`}
-                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                  className={`absolute top-6 right-8 w-10 h-10 items-center justify-center rounded-full z-20 ${isDark ? 'bg-[#1e293b]' : 'bg-slate-50'}`}
                 >
                   <X size={20} color={isDark ? '#94a3b8' : '#64748b'} />
                 </TouchableOpacity>
-              </>
-            )}
+              )}
 
-            {!isSuccess ? (
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View className="px-2 pb-10 pt-6 space-y-8">
-                  <View>
-                    <Text className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8] mb-4 ml-1">
-                      Top up amount
-                    </Text>
-                    <View
-                      className={`flex-row items-center justify-between p-4 rounded-2xl border min-h-[88px] ${
-                        isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-slate-50 border-slate-200/50'
-                      }`}
+              {!isSuccess ? (
+                <ScrollView 
+                   showsVerticalScrollIndicator={false} 
+                   keyboardShouldPersistTaps="handled"
+                   contentContainerStyle={{ paddingBottom: 60 }}
+                   bounces={false}
+                >
+                  {/* Header Icon */}
+                  <View className="items-center mb-4">
+                    <View 
+                      style={{ backgroundColor: isDark ? '#1e293b' : '#f0fdf4', padding: 2, borderRadius: 100 }}
                     >
-                      <Text className={`text-xl font-bold ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ETB</Text>
+                       <View className="w-12 h-12 rounded-full bg-[#064e3b] items-center justify-center">
+                         <WalletIcon size={24} color="white" />
+                       </View>
+                    </View>
+                  </View>
+
+                  {/* Title */}
+                  <View className="items-center mb-6">
+                    <Text className={`text-xl font-black mb-1 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Top Up Wallet</Text>
+                    <Text className="text-xs text-[#64748b] font-medium">Add credits to your account</Text>
+                  </View>
+
+                  {/* Amount Section */}
+                  <View className="items-center mb-6">
+                    <Text className="text-[11px] font-black text-[#94a3b8] uppercase tracking-[3px] mb-8">
+                      ENTER AMOUNT (ETB)
+                    </Text>
+                    
+                    <View className="flex-row items-center justify-center gap-4">
+                      <Text className="text-2xl font-black text-[#064e3b] mt-2">ETB</Text>
                       <TextInput
                         keyboardType="decimal-pad"
                         value={topUpAmount}
                         onChangeText={text => setTopUpAmount(text.replace(/[^0-9.]/g, ''))}
-                        placeholder="0.00"
-                        placeholderTextColor={isDark ? '#475569' : '#cbd5e1'}
-                        className={`flex-1 text-right text-4xl font-bold p-0 m-0 ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+                        placeholder="100"
+                        placeholderTextColor={isDark ? '#334155' : '#e2e8f0'}
+                        className={`text-7xl font-black ${isDark ? 'text-white' : 'text-[#0f172a]'}`}
+                        style={{ height: 100, paddingTop: 10, paddingBottom: 10 }}
+                        autoFocus={false}
                       />
                     </View>
+                  </View>
 
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      className="-mx-2 px-2 mt-4"
-                      contentContainerStyle={{ gap: 12, paddingRight: 24 }}
+                  {/* Quick Select Buttons */}
+                  <View className="flex-row justify-center gap-3 mb-10">
+                    {['100', '250', '500'].map(amt => {
+                      const isSelected = topUpAmount === amt;
+                      return (
+                        <TouchableOpacity
+                          key={amt}
+                          onPress={() => setTopUpAmount(amt)}
+                          className={`px-8 py-3 rounded-full border ${isSelected ? 'bg-[#064e3b] border-[#064e3b]' : 'bg-slate-50 border-transparent'}`}
+                        >
+                          <Text className={`text-sm font-black ${isSelected ? 'text-white' : 'text-[#64748b]'}`}>
+                            +{amt}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Separator */}
+                  <View className="flex-row items-center mb-8">
+                    <View className="flex-1 h-px bg-slate-100 border-t border-dashed border-slate-300" />
+                    <Text className="text-[9px] font-black text-[#94a3b8] tracking-[2px] mx-4 uppercase">SELECT PAYMENT METHOD</Text>
+                    <View className="flex-1 h-px bg-slate-100 border-t border-dashed border-slate-300" />
+                  </View>
+
+                  {/* Payment Options */}
+                  <View className="flex-row gap-4 mb-8">
+                    <TouchableOpacity
+                      onPress={() => setSelectedMethod('Chapa')}
+                      className={`flex-1 min-h-[110px] rounded-3xl border p-6 items-center justify-center gap-2 ${
+                        selectedMethod === 'Chapa' ? 'bg-white border-[#064e3b]' : 'bg-slate-50 border-transparent'
+                      }`}
+                      style={selectedMethod === 'Chapa' ? { elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } } : {}}
                     >
-                      {['100', '250', '500', '1000'].map(amt => {
-                        const isSelected = topUpAmount === amt;
-                        return (
-                          <TouchableOpacity
-                            key={amt}
-                            onPress={() => setTopUpAmount(amt)}
-                            className={`min-h-[52px] px-6 py-3 rounded-2xl items-center justify-center border ${
-                              isSelected
-                                ? isDark
-                                  ? 'bg-[#34d399] border-[#064e3b]'
-                                  : 'bg-[#064e3b] border-[#064e3b]'
-                                : isDark
-                                  ? 'bg-[#1e293b] border-[#064e3b]/45'
-                                  : 'bg-slate-50 border-[#064e3b]/50'
-                            }`}
-                          >
-                            <Text
-                              className={`text-sm font-bold ${
-                                isSelected
-                                  ? isDark
-                                    ? 'text-[#0f172a]'
-                                    : 'text-white'
-                                  : isDark
-                                    ? 'text-[#f8fafc]'
-                                    : 'text-[#0f172a]'
-                              }`}
-                            >
-                              +{amt}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
+                      <Text className={`text-base font-black tracking-tight ${selectedMethod === 'Chapa' ? 'text-[#0f172a]' : 'text-slate-400'}`}>CHAPA</Text>
+                      <Text className="text-[10px] font-bold text-[#64748b]">Faster Processing</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      disabled
+                      className={`flex-1 min-h-[110px] rounded-3xl border p-6 items-center justify-center gap-2 bg-slate-50 border-transparent opacity-60`}
+                    >
+                      <Text className="text-base font-black tracking-tight text-slate-300">telebirr</Text>
+                      <Text className="text-[10px] font-bold text-slate-300 italic">Coming Soon</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  <View className="py-4 relative justify-center">
-                    <View className={`w-full border-t-[2px] border-dashed ${isDark ? 'border-[#334155]' : 'border-slate-200'}`} />
-                    <View className={`absolute -left-10 w-8 h-8 rounded-full ${isDark ? 'bg-black/20' : 'bg-black/5'}`} />
-                    <View className={`absolute -right-10 w-8 h-8 rounded-full ${isDark ? 'bg-black/20' : 'bg-black/5'}`} />
-                  </View>
-
-                  <View>
-                    <Text className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8] mb-2 ml-1">
-                      Payment method
-                    </Text>
-                    <Text className={`text-xs font-medium mb-4 ml-1 ${isDark ? 'text-[#64748b]' : 'text-slate-500'}`}>
-                      {`You'll finish ${
-                        selectedMethod === 'Chapa' ? 'card or bank' : 'Telebirr or other local'
-                      } payment on the secure Chapa page.`}
-                    </Text>
-                    <View className="flex-row gap-3">
-                      <TouchableOpacity
-                        onPress={() => setSelectedMethod('Chapa')}
-                        className={`flex-1 min-h-[120px] rounded-2xl border p-4 justify-between ${
-                          selectedMethod === 'Chapa'
-                            ? isDark
-                              ? 'bg-[#34d399]/15 border-[#064e3b]'
-                              : 'bg-[#ecfdf5] border-[#064e3b]'
-                            : isDark
-                              ? 'bg-[#1e293b] border-[#064e3b]/45'
-                              : 'bg-slate-50 border-[#064e3b]/50'
-                        }`}
-                      >
-                        <View className="w-12 h-12 rounded-xl bg-[#059669] items-center justify-center">
-                          <Text className="text-white font-black italic text-sm tracking-tighter">chapa</Text>
-                        </View>
-                        <View>
-                          <Text className={`text-sm font-black mb-0.5 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                            Chapa
-                          </Text>
-                          <Text className={`text-[10px] font-medium ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
-                            Cards & banks
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => setSelectedMethod('Telebirr')}
-                        className={`flex-1 min-h-[120px] rounded-2xl border p-4 justify-between ${
-                          selectedMethod === 'Telebirr'
-                            ? isDark
-                              ? 'bg-[#34d399]/15 border-[#064e3b]'
-                              : 'bg-[#ecfdf5] border-[#064e3b]'
-                            : isDark
-                              ? 'bg-[#1e293b] border-[#064e3b]/45'
-                              : 'bg-slate-50 border-[#064e3b]/50'
-                        }`}
-                      >
-                        <View className="w-12 h-12 rounded-xl bg-[#0ea5e9] items-center justify-center">
-                          <Text className="text-white font-black text-[10px]">TELE</Text>
-                        </View>
-                        <View>
-                          <Text className={`text-sm font-black mb-0.5 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                            Telebirr
-                          </Text>
-                          <Text className={`text-[10px] font-medium ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
-                            Local wallets
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
+                  {/* Action Button */}
                   <TouchableOpacity
                     onPress={handleTopUp}
                     disabled={!topUpAmount || topUpLoading}
-                    style={{
-                      shadowColor: isDark ? '#34d399' : '#064e3b',
-                      shadowOffset: { width: 0, height: 10 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 15,
-                      elevation: 10,
+                    style={!topUpAmount || topUpLoading ? {} : {
+                      shadowColor: '#064e3b',
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 12,
+                      elevation: 8,
                     }}
-                    className={`w-full py-5 rounded-2xl flex-row items-center justify-center gap-2 ${
-                      !topUpAmount || topUpLoading ? 'opacity-50' : ''
-                    } ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                    className={`w-full h-16 rounded-2xl flex-row items-center justify-center gap-2 ${
+                      !topUpAmount || topUpLoading ? 'bg-slate-200' : 'bg-[#064e3b]'
+                    }`}
                   >
                     {topUpLoading ? (
-                      <ActivityIndicator color={isDark ? '#0f172a' : '#ffffff'} />
+                      <ActivityIndicator color="white" />
                     ) : (
                       <>
-                        <Text className={`text-lg font-bold ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>
-                          Proceed to payment
+                        <Text className="text-base font-black text-white">
+                          Pay ETB {parseFloat(topUpAmount || '0').toFixed(2)}
                         </Text>
-                        <ArrowRight size={20} color={isDark ? '#0f172a' : 'white'} />
+                        <ArrowRight size={20} color="white" />
                       </>
                     )}
                   </TouchableOpacity>
-                  <Text className="text-[10px] font-bold uppercase tracking-wider text-center text-[#94a3b8]">
-                    Secure checkout via Chapa
-                  </Text>
-                </View>
-              </ScrollView>
-            ) : (
-              <View className="w-full flex-1">
-                <View className="w-full flex-row justify-end px-2 pt-2">
-                  <TouchableOpacity
-                    onPress={closeTopUp}
-                    className={`w-10 h-10 items-center justify-center rounded-full ${isDark ? 'bg-[#1e293b]' : 'bg-slate-100'}`}
-                  >
-                    <X size={20} color={isDark ? '#94a3b8' : '#64748b'} />
-                  </TouchableOpacity>
-                </View>
 
-                <View className="items-center mt-2 mb-8 px-2">
-                  <View 
-                    style={{
-                      shadowColor: '#064e3b',
-                      shadowOffset: { width: 0, height: 10 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 15,
-                      elevation: 10,
-                      backgroundColor: '#064e3b'
-                    }}
-                    className="w-[100px] h-[100px] rounded-full items-center justify-center mb-6"
-                  >
-                    <CheckCircle2 size={50} color="white" />
+                  {/* Final Footer */}
+                  <View className="flex-row items-center justify-center gap-2 mt-6 opacity-30 pb-4">
+                    <View className="w-4 h-4 rounded-full border border-slate-500 items-center justify-center">
+                       <Text style={{ fontSize: 8 }}>✓</Text>
+                    </View>
+                    <Text className="text-[9px] font-black uppercase tracking-[2px] text-slate-600">SECURE ENCRYPTED TRANSACTION</Text>
                   </View>
-                  <Text className={`text-[32px] font-black tracking-tight mb-3 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                    Wallet topped up
-                  </Text>
-                  <Text className={`text-[15px] font-medium text-center max-w-[280px] leading-6 ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
-                    If you completed payment in the browser, your balance updates automatically. You can always pull to refresh
-                    on the wallet screen.
-                  </Text>
-                </View>
+                </ScrollView>
+              ) : (
+                <View className="w-full flex-1">
+                  <View className="w-full flex-row justify-end px-2 pt-2">
+                    <TouchableOpacity
+                      onPress={closeTopUp}
+                      className={`w-10 h-10 items-center justify-center rounded-full ${isDark ? 'bg-[#1e293b]' : 'bg-slate-100'}`}
+                    >
+                      <X size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+                    </TouchableOpacity>
+                  </View>
 
-                <View className="w-full px-4 mb-6">
-                  <View
-                    style={isDark ? {} : {
-                      shadowColor: '#e2e8f0',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.5,
-                      shadowRadius: 10,
-                      elevation: 3,
-                    }}
-                    className={`w-full rounded-[32px] border relative p-8 ${
-                      isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'
-                    }`}
-                  >
-                    <View className={`absolute top-[55%] -left-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
-                    <View className={`absolute top-[55%] -right-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
-                    <View className="w-full absolute top-[55%] mt-4 border-t border-dashed border-[#94a3b8]/30 left-8 right-8 z-10" />
-                    <View className="flex-row justify-between items-center mb-8">
-                      <View className="flex-1 mr-2">
-                        <Text className="text-[10px] font-black uppercase text-[#34d399] tracking-[1px] mb-1">
-                          REFERENCE
-                        </Text>
-                        <Text
-                          className={`text-base font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}
-                          numberOfLines={2}
-                        >
-                          {lastTopUpTxRef || '—'}
-                        </Text>
-                      </View>
-                      <View className="px-3 py-1.5 rounded-full bg-[#ecfdf5] flex-row items-center gap-1.5">
-                        <View className="w-2 h-2 rounded-full bg-[#34d399]" />
-                        <Text className="text-[10px] font-black text-[#064e3b] tracking-[1px]">INITIATED</Text>
-                      </View>
+                  <View className="items-center mt-2 mb-8 px-2">
+                    <View 
+                      style={{
+                        shadowColor: '#064e3b',
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 15,
+                        elevation: 10,
+                        backgroundColor: '#064e3b'
+                      }}
+                      className="w-[100px] h-[100px] rounded-full items-center justify-center mb-6"
+                    >
+                      <CheckCircle2 size={50} color="white" />
                     </View>
+                    <Text className={`text-[32px] font-black tracking-tight mb-3 ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
+                      Wallet topped up
+                    </Text>
+                    <Text className={`text-[15px] font-medium text-center max-w-[280px] leading-6 ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
+                      If you completed payment in the browser, your balance updates automatically. You can always pull to refresh
+                      on the wallet screen.
+                    </Text>
+                  </View>
 
-                    <View className="flex-row justify-between mb-10">
-                      <View>
-                        <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-1">
-                          AMOUNT
-                        </Text>
-                        <Text className={`text-2xl font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                          ETB {parseFloat(topUpAmount || '0').toFixed(2)}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-1">
-                          WALLET BALANCE
-                        </Text>
-                        <Text className={`text-2xl font-medium ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
-                          ETB {wallet ? parseFloat(wallet.balance).toFixed(2) : '0.00'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View className="h-[40px]" />
-
-                    <View className="flex-row justify-between">
-                      <View className="flex-row gap-3 items-center flex-1">
-                        <View className={`w-12 h-12 rounded-xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f1f5f9]'}`}>
-                          <Text className={`font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>C</Text>
+                  <View className="w-full px-4 mb-6">
+                    <View
+                      style={isDark ? {} : {
+                        shadowColor: '#e2e8f0',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 10,
+                        elevation: 3, 
+                      }}
+                      className={`w-full rounded-[32px] border relative p-8 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-100'}`}
+                    >
+                      <View className={`absolute top-[55%] -left-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+                      <View className={`absolute top-[55%] -right-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+                      <View className="w-full absolute top-[55%] mt-4 border-t border-dashed border-[#94a3b8]/30 left-8 right-8 z-10" />
+                      <View className="flex-row justify-between items-center mb-8">
+                        <View className="flex-1 mr-2">
+                          <Text className="text-[10px] font-black uppercase text-[#34d399] tracking-[1px] mb-1">REFERENCE</Text>
+                          <Text className={`text-base font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} numberOfLines={2}>
+                            {lastTopUpTxRef || '—'}
+                          </Text>
                         </View>
+                        <View className="px-3 py-1.5 rounded-full bg-[#ecfdf5] flex-row items-center gap-1.5">
+                          <View className="w-2 h-2 rounded-full bg-[#34d399]" />
+                          <Text className="text-[10px] font-black text-[#064e3b] tracking-[1px]">INITIATED</Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row justify-between mb-10">
                         <View>
-                          <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-0.5">
-                            METHOD
+                          <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-1">AMOUNT</Text>
+                          <Text className={`text-2xl font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
+                            ETB {parseFloat(topUpAmount || '0').toFixed(2)}
                           </Text>
-                          <Text className={`text-[15px] font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                            {selectedMethod} · Chapa
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-1">WALLET BALANCE</Text>
+                          <Text className={`text-2xl font-medium ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
+                            ETB {wallet ? parseFloat(wallet.balance).toFixed(2) : '0.00'}
                           </Text>
                         </View>
                       </View>
-                      <View className="items-end justify-center">
-                        <Text className="text-[10px] font-black uppercase text-[#94a3b8] tracking-[1px] mb-0.5">DATE</Text>
-                        <Text className={`text-[15px] font-medium ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                          {new Date().toLocaleString()}
-                        </Text>
-                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View className="px-4 gap-3 pb-8">
                   <TouchableOpacity
-                    onPress={() => {
-                      closeTopUp();
-                      fetchWalletData();
-                    }}
-                    className={`h-14 rounded-2xl items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
+                    onPress={() => { closeTopUp(); fetchWalletData(); }}
+                    className={`mx-4 h-14 rounded-2xl items-center justify-center ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
                   >
                     <Text className={`font-bold text-lg ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Done</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      closeTopUp();
-                      setTimeout(() => router.push('/(tabs)/find' as any), 300);
-                    }}
-                    className={`flex-row items-center p-4 rounded-2xl border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-[#f8fafc] border-slate-200'}`}
-                  >
-                    <View className="w-14 h-14 rounded-2xl bg-black overflow-hidden mr-4">
-                      <Image
-                        source={{
-                          uri: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&h=200&fit=crop',
-                        }}
-                        className="w-full h-full"
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-[10px] font-bold text-[#e18b45] tracking-[1px] uppercase mb-1">
-                        FIND PARKING
-                      </Text>
-                      <Text className={`text-[13px] font-medium leading-5 pr-2 ${isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'}`}>
-                        Browse spots near you.
-                      </Text>
-                    </View>
-                    <Text className={`font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>›</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
-          </Animated.View>
+              )}
+            </Animated.View>
+          </View>
         </View>
       )}
 

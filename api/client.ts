@@ -28,9 +28,10 @@ async function request(method: string, endpoint: string, data?: any, params?: an
     if (queryString) url += `?${queryString}`;
   }
 
-  // Add a 30-second timeout for slow cold starts
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+
 
   try {
     const response = await fetch(url, {
@@ -45,19 +46,24 @@ async function request(method: string, endpoint: string, data?: any, params?: an
 
     clearTimeout(timeoutId);
 
+
+    // Parse response body
+    const responseData = await response.json().catch(() => ({}));
+
+
     // Handle common status codes
     if (response.status === 401) {
-      console.warn('Unauthorized request - session may have expired');
+
       if (onUnauthorized) {
         onUnauthorized();
       }
     }
 
-    // Parse response body
-    const responseData = await response.json().catch(() => ({}));
-
     if (!response.ok) {
-      let message = responseData.message || `API Request failed with status ${response.status}`;
+      let message =
+        responseData.message ||
+        responseData.error ||  // backend payment/wallet routes use { error: "..." }
+        `API Request failed with status ${response.status}`;
       
       // Specifically handle 502 / intermittent gateway issues (Render cold starts)
       if (response.status === 502 || response.status === 503 || response.status === 504) {
@@ -81,6 +87,7 @@ async function request(method: string, endpoint: string, data?: any, params?: an
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
+
     if (error.name === 'AbortError') {
       throw new Error('Our servers are taking a bit longer to wake up. Please try again in a moment.');
     }

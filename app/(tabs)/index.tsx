@@ -48,7 +48,7 @@ export default function DashboardScreen() {
   }) {
     const status = res.status?.toUpperCase() ?? '';
     const isCancelled = status === 'CANCELLED' || status === 'EXPIRED';
-    const isPaid = status === 'PAID' || status === 'COMPLETED';
+    const isPaid = status === 'PAID';
     return (
       <TouchableOpacity
         style={{
@@ -83,7 +83,7 @@ export default function DashboardScreen() {
             <View className="flex-row items-center gap-2">
               <View className={`px-2 py-0.5 rounded-lg ${isCancelled ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : isPaid ? (isDark ? 'bg-emerald-500/10' : 'bg-emerald-50') : isDark ? 'bg-slate-500/10' : 'bg-slate-50'}`}>
                 <Text className={`text-[8px] font-black tracking-widest uppercase ${isCancelled ? 'text-red-500' : isPaid ? 'text-emerald-500' : 'text-slate-500'}`}>
-                  {status === 'COMPLETED' ? 'PAID' : status}
+                  {status}
                 </Text>
               </View>
               <Text className="text-[9px] font-bold text-[#64748b]">
@@ -107,7 +107,6 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>('00:00:00');
-  const [progress, setProgress] = useState(0);
   const [navLoading, setNavLoading] = useState(false);
   const [ticketQrFor, setTicketQrFor] = useState<Reservation | null>(null);
   const [costMinuteBump, setCostMinuteBump] = useState(0);
@@ -149,6 +148,7 @@ export default function DashboardScreen() {
         list.find(r => r.status?.toUpperCase() === 'ACTIVE') ||
         list.find(r => r.status?.toUpperCase() === 'RESERVED') ||
         list.find(r => r.status?.toUpperCase() === 'UNPAID') ||
+        list.find(r => r.status?.toUpperCase() === 'COMPLETED') ||
         null;
 
       let active = fromList;
@@ -185,27 +185,26 @@ export default function DashboardScreen() {
 
     const timer = setInterval(() => {
       const now = dayjs();
-      const end = dayjs(activeReservation.endTime);
-      const entry = getReservationEntryInstant(activeReservation) ?? dayjs(activeReservation.startTime);
-      const diff = end.diff(now);
-
-      if (diff <= 0) {
-        setTimeLeft('00:00:00');
-        setProgress(1);
-        clearInterval(timer);
-        return;
+      // Extract physical check-in time (actualStartTime). Avoid falling back to scheduled startTime!
+      const actualKeys = [
+        'actualStartTime', 'actual_start_time', 'actualStart', 'sessionStartTime', 'enteredAt'
+      ];
+      let physicalEntry: string | undefined;
+      for (const k of actualKeys) {
+        const v = (activeReservation as any)[k];
+        if (typeof v === 'string' && v.length > 0) {
+          physicalEntry = v;
+          break;
+        }
       }
 
-      // Calculate timer text
-      const h = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0');
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-      const s = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
-      setTimeLeft(`${h}:${m}:${s}`);
+      const elapsedMs = physicalEntry ? Math.max(0, now.diff(dayjs(physicalEntry))) : 0;
 
-      // Progress: elapsed since real check-in vs remaining window to scheduled end
-      const total = Math.max(1, end.diff(entry));
-      const elapsed = now.diff(entry);
-      setProgress(Math.min(Math.max(0, elapsed / total), 1));
+      // Calculate timer text (counting up)
+      const h = Math.floor(elapsedMs / (1000 * 60 * 60)).toString().padStart(2, '0');
+      const m = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+      const s = Math.floor((elapsedMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
+      setTimeLeft(`${h}:${m}:${s}`);
     }, 1000);
 
     return () => clearInterval(timer);
@@ -305,13 +304,13 @@ export default function DashboardScreen() {
   const safeReservations = Array.isArray(reservations) ? reservations : [];
   const activeCount = safeReservations.filter(r => {
     const s = String(r.status ?? '').toUpperCase();
-    return s === 'ACTIVE' || s === 'RESERVED' || s === 'UNPAID';
+    return s === 'ACTIVE' || s === 'RESERVED' || s === 'UNPAID' || s === 'COMPLETED';
   }).length;
   const totalCount = safeReservations.length;
   const recentHistory = safeReservations.slice(0, 3);
 
   const sessionStatus = activeReservation?.status?.toUpperCase() ?? '';
-  const isUnpaidCard = sessionStatus === 'UNPAID';
+  const isUnpaidCard = sessionStatus === 'UNPAID' || sessionStatus === 'COMPLETED';
   const isReservedCard = sessionStatus === 'RESERVED';
   const isActiveCard = sessionStatus === 'ACTIVE';
 
@@ -412,28 +411,6 @@ export default function DashboardScreen() {
 
         {/* Active Session OR Search Bar */}
         <View className="mb-8">
-          <View className={`flex-row items-center justify-between ${activeReservation ? 'mb-4' : 'mb-1'}`}>
-            <Text className={`text-2xl font-bold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>
-              {activeReservation
-                ? isReservedCard ? 'Upcoming reservation'
-                : isUnpaidCard ? 'Payment due'
-                : 'Active Session'
-                : ''}
-            </Text>
-            {isActiveCard && (
-              <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <View className="w-2 h-2 rounded-full bg-emerald-500" />
-                <Text className="text-[10px] font-black text-emerald-500 tracking-wider">LIVE NOW</Text>
-              </View>
-            )}
-            {isUnpaidCard && (
-              <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25">
-                <View className="w-2 h-2 rounded-full bg-amber-500" />
-                <Text className="text-[10px] font-black text-amber-600 tracking-wider">UNPAID</Text>
-              </View>
-            )}
-          </View>
-
           {activeReservation ? (
             <View
               style={{
@@ -445,12 +422,32 @@ export default function DashboardScreen() {
               }}
               className={`rounded-[40px] border p-6 ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#d1fae5]'}`}
             >
-              <Text
-                numberOfLines={2}
-                className={`text-base font-bold mb-1 ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
-              >
-                {getReservationLocationLabel(activeReservation, 'Parking')}
-              </Text>
+              <View className="flex-row justify-between items-start mb-1">
+                <Text
+                  numberOfLines={2}
+                  className={`text-base font-bold flex-1 mr-2 ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
+                >
+                  {getReservationLocationLabel(activeReservation, 'Parking')}
+                </Text>
+                {isActiveCard && (
+                  <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    <View className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <Text className="text-[10px] font-black text-emerald-500 tracking-wider">ACTIVE</Text>
+                  </View>
+                )}
+                {isReservedCard && (
+                  <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                    <View className="w-2 h-2 rounded-full bg-blue-500" />
+                    <Text className="text-[10px] font-black text-blue-500 tracking-wider">UPCOMING</Text>
+                  </View>
+                )}
+                {isUnpaidCard && (
+                  <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25">
+                    <View className="w-2 h-2 rounded-full bg-amber-500" />
+                    <Text className="text-[10px] font-black text-amber-600 tracking-wider">UNPAID</Text>
+                  </View>
+                )}
+              </View>
 
               {isReservedCard ? (
                 <Text className={`text-xs font-medium mb-5 ${isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'}`}>
@@ -467,7 +464,7 @@ export default function DashboardScreen() {
               {isActiveCard ? (
                 <View className="items-center mb-5">
                   <Text className={`text-[10px] font-black uppercase tracking-[3px] mb-2 ${isDark ? 'text-[#34d399]' : 'text-[#34d399]'}`}>
-                    TIME REMAINING
+                    ELAPSED TIME
                   </Text>
                   <View className="w-full items-center" style={{ minWidth: 280 }}>
                     <Text
@@ -484,30 +481,7 @@ export default function DashboardScreen() {
                 </View>
               ) : null}
 
-              {isActiveCard ? (
-                <View className="mb-5">
-                  <View className={`h-2.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-[#0f172a]' : 'bg-[#ecfdf5]'}`}>
-                    <View
-                      style={{ width: `${progress * 100}%` }}
-                      className={`h-full ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
-                    />
-                  </View>
-                  <View className="flex-row justify-between mt-3 px-1">
-                    <View>
-                      <Text className="text-[9px] font-bold text-[#94a3b8] mb-0.5">STARTED</Text>
-                      <Text className={`text-xs font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                        {(getReservationEntryInstant(activeReservation) ?? dayjs(activeReservation.startTime)).format('hh:mm A')}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-[9px] font-bold text-[#94a3b8] mb-0.5">ENDS</Text>
-                      <Text className={`text-xs font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>
-                        {dayjs(activeReservation.endTime).format('hh:mm A')}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ) : null}
+
 
               <View className={`w-full h-px border-t border-dashed mb-5 ${isDark ? 'border-[#334155]' : 'border-[#d1fae5]'}`} />
 
@@ -658,6 +632,7 @@ export default function DashboardScreen() {
             ))}
           </View>
         </View>
+
       </ScrollView>
       {/* Search Slide-Up Modal */}
       {showSearch && (
