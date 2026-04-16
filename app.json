@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bi9ears.Parkaddis",
+      "bundleIdentifier": "com.captnoah.Parkaddis",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "ParkAddis needs your location to find nearby parking and provide navigation.",

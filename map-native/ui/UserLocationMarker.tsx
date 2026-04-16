@@ -57,7 +57,7 @@ export function UserLocationMarker() {
   const accent = isDark ? PRIMARY_DARK : PRIMARY_LIGHT;
 
   // Position arrow slightly in front of the puck based on bearing
-  const offset = 12;
+  const offset = 18;
   const rad = (smoothedBearing * Math.PI) / 180;
   const dx = Math.sin(rad) * offset;
   const dy = -Math.cos(rad) * offset;

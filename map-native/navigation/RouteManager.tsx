@@ -49,7 +49,6 @@ export function RouteManager() {
       isFetchingRef.current = true;
 
       try {
-        console.log("RouteManager (Mobile): Fetching OSRM route...");
         const response = await fetchOSRMRoute([lng, lat], [dest.lng, dest.lat]);
 
         // Check if request was cancelled
@@ -64,7 +63,6 @@ export function RouteManager() {
         }
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
-          console.log("RouteManager: Request cancelled");
           return;
         }
         console.error("RouteManager: Fetch failed", error);

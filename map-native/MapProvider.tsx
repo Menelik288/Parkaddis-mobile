@@ -70,43 +70,20 @@ export function MapProvider({ children }: { children: ReactNode }) {
       const { zoom = 15.5, duration = 1000, mode = "easeTo" } = options || {};
 
       const run = () => {
-        console.log(
-          "scheduleFlyToCoords: run called, mapLoaded:",
-          mapViewHasLoadedRef.current,
-          "cameraReady:",
-          !!cameraRef.current?.setCamera,
-        );
         if (!mapViewHasLoadedRef.current) {
-          console.log("scheduleFlyToCoords: map not loaded, skipping");
           return;
         }
         if (!cameraRef.current?.setCamera) {
-          console.log("scheduleFlyToCoords: camera not ready, skipping");
           return;
         }
-        console.log(
-          "scheduleFlyToCoords: setting camera to",
-          [lng, lat],
-          "zoom",
-          zoom,
-          "duration",
-          duration,
-          "mode",
-          mode,
-        );
-        try {
-          cameraRef.current.setCamera({
-            centerCoordinate: [lng, lat],
-            zoomLevel: zoom,
-            animationDuration: duration,
-            animationMode: mode,
-            pitch: 0,
-            heading: 0,
-          });
-          console.log("scheduleFlyToCoords: setCamera called successfully");
-        } catch (e) {
-          console.log("scheduleFlyToCoords: setCamera error:", e);
-        }
+        cameraRef.current.setCamera({
+          centerCoordinate: [lng, lat],
+          zoomLevel: zoom,
+          animationDuration: duration,
+          animationMode: mode,
+          pitch: 0,
+          heading: 0,
+        });
       };
 
       // Schedule camera movement with animation frame for consistency
@@ -136,9 +113,6 @@ export function MapProvider({ children }: { children: ReactNode }) {
       // Update coordinates
       setCoords(newCoords);
 
-      console.log("locateUser: newCoords", newCoords);
-      console.log("locateUser: currentCenter", currentCenterRef.current);
-
       // Only fly if not already centered on user location
       const currentCenter = currentCenterRef.current;
       const shouldFly =
@@ -146,13 +120,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
         Math.abs(currentCenter.lng - newCoords.lng) > 0.0001 ||
         Math.abs(currentCenter.lat - newCoords.lat) > 0.0001;
 
-      console.log("locateUser: shouldFly", shouldFly);
-
       if (shouldFly) {
-        console.log("locateUser: flying to", newCoords.lng, newCoords.lat);
         scheduleFlyToCoords(newCoords.lng, newCoords.lat);
-      } else {
-        console.log("locateUser: already centered, not flying");
       }
     } catch (err) {
       console.error("Location error:", err);

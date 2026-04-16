@@ -62,7 +62,6 @@ const MapRoot = ({ children }: MapRootProps) => {
           centerCoordinate={DEFAULT_CENTER}
           zoomLevel={14.5}
           onCameraChanged={(camera) => {
-            console.log("onCameraChanged:", camera.centerCoordinate);
             currentCenterRef.current = {
               lng: camera.centerCoordinate[0],
               lat: camera.centerCoordinate[1],

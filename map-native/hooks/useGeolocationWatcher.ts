@@ -115,7 +115,7 @@ export function useGeolocationWatcher() {
 
         activeSubRef.current = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.BestForNavigation,
+            accuracy: Location.Accuracy.Highest,
             timeInterval: 500,
             distanceInterval: 1,
           },

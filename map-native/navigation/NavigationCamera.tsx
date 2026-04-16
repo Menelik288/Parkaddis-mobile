@@ -19,6 +19,8 @@ export function NavigationCamera() {
   const didCenterOnUserAtLoad = useRef(false);
   const lastPreviewFitKey = useRef<string | null>(null);
   const previewRouteBoundsRef = useRef<MapRegionSnapshot | null>(null);
+  const userNavigationZoomRef = useRef<number | null>(null);
+  const lastCameraZoomRef = useRef<number | null>(null);
 
   // Debounced camera operation to prevent rapid successive calls
   const pendingCameraOpRef = useRef<{ id: string; fn: () => void } | null>(
@@ -112,14 +114,29 @@ export function NavigationCamera() {
 
       executeCameraOperation("navigation-follow", () => {
         if (cameraRef.current?.setCamera) {
-          cameraRef.current.setCamera({
-            centerCoordinate: targetCoords,
-            zoomLevel: 18.5,
-            pitch: 0,
-            heading: 0,
-            animationMode: isFirstFrameNavigating ? "flyTo" : "moveTo",
-            animationDuration: isFirstFrameNavigating ? 2500 : 1000,
-          });
+          // On first navigation frame, set zoom and store it
+          if (isFirstFrameNavigating) {
+            userNavigationZoomRef.current = 17.5;
+            cameraRef.current.setCamera({
+              centerCoordinate: targetCoords,
+              zoomLevel: 17.5,
+              pitch: 0,
+              heading: 0,
+              animationMode: "flyTo",
+              animationDuration: 2500,
+            });
+          } else {
+            // Subsequent updates only move position, preserve user's current zoom
+            const currentZoom = userNavigationZoomRef.current || 17.5;
+            cameraRef.current.setCamera({
+              centerCoordinate: targetCoords,
+              zoomLevel: currentZoom,
+              pitch: 0,
+              heading: 0,
+              animationMode: "easeTo",
+              animationDuration: 1500,
+            });
+          }
           lastTarget.current = stateKey;
         }
       });
@@ -182,13 +199,6 @@ export function NavigationCamera() {
     const prevStatus = lastTarget.current?.split("-")[0] || null;
     const currentStatus = navigation.status;
 
-    console.log(
-      "NavigationCamera: status change",
-      prevStatus,
-      "->",
-      currentStatus,
-    );
-
     if (prevStatus === currentStatus) return;
 
     if (!cameraRef.current) return;
@@ -225,13 +235,11 @@ export function NavigationCamera() {
       (prevStatus === "NAVIGATING" || prevStatus === "ARRIVED") &&
       currentStatus === "IDLE"
     ) {
-      console.log("NavigationCamera: restoring from navigation to idle");
       if (
         navigation.userCoords &&
         typeof cameraRef.current.setCamera === "function"
       ) {
         executeCameraOperation("restore-navigation", () => {
-          console.log("NavigationCamera: executing restore-navigation");
           const { lng, lat } = navigation.userCoords!;
           cameraRef.current?.setCamera({
             centerCoordinate: [lng, lat],
@@ -252,6 +260,61 @@ export function NavigationCamera() {
     idleRegionRef,
     executeCameraOperation,
   ]);
+
+  // Track user zoom changes during navigation
+  useEffect(() => {
+    if (navigation.status !== "NAVIGATING") {
+      userNavigationZoomRef.current = null;
+      lastCameraZoomRef.current = null;
+      return;
+    }
+
+    const handleCameraChange = (camera: any) => {
+      if (camera.zoomLevel !== undefined) {
+        const currentZoom = camera.zoomLevel;
+        const lastZoom = lastCameraZoomRef.current;
+
+        // If this is a significant zoom change (user interaction), update stored zoom
+        if (lastZoom !== null && Math.abs(currentZoom - lastZoom) > 0.1) {
+          userNavigationZoomRef.current = currentZoom;
+        }
+
+        lastCameraZoomRef.current = currentZoom;
+      }
+    };
+
+    // Get initial zoom when navigation starts
+    if (cameraRef.current?.getCamera) {
+      cameraRef.current
+        .getCamera()
+        .then((camera: any) => {
+          if (camera.zoomLevel !== undefined) {
+            lastCameraZoomRef.current = camera.zoomLevel;
+            if (!userNavigationZoomRef.current) {
+              userNavigationZoomRef.current = camera.zoomLevel;
+            }
+          }
+        })
+        .catch(() => {
+          // Fallback to default zoom
+          lastCameraZoomRef.current = 17.5;
+          userNavigationZoomRef.current = 17.5;
+        });
+    }
+
+    // Listen to camera changes
+    const cameraChangeSubscription =
+      cameraRef.current?.onCameraChanged?.(handleCameraChange);
+
+    return () => {
+      if (
+        cameraChangeSubscription &&
+        typeof cameraChangeSubscription.remove === "function"
+      ) {
+        cameraChangeSubscription.remove();
+      }
+    };
+  }, [navigation.status, cameraRef]);
 
   return null;
 }

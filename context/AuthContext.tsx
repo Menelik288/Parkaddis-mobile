@@ -1,6 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import apiClient, { setUnauthorizedHandler } from '../api/client';
+import * as SecureStore from "expo-secure-store";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import apiClient, { setUnauthorizedHandler } from "../api/client";
 
 interface User {
   id: string;
@@ -13,6 +19,7 @@ interface AuthContextType {
   user: User | null;
   sessionId: string | null;
   isLoading: boolean;
+  isOnline: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
@@ -25,15 +32,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
 
   // We define logout first so it can be used in useEffect
   async function logout() {
     try {
-      await apiClient.get('/auth/logout');
+      await apiClient.get("/auth/logout");
     } catch (e) {
-      console.warn('Logout API call failed', e);
+      console.warn("Auth: Logout API call failed", e);
     }
-    await SecureStore.deleteItemAsync('sessionId');
+    await SecureStore.deleteItemAsync("sessionId");
+    await SecureStore.deleteItemAsync("userData");
     setSessionId(null);
     setUser(null);
   }
@@ -45,13 +54,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   async function loadSession() {
     try {
-      const storedSessionId = await SecureStore.getItemAsync('sessionId');
+      const storedSessionId = await SecureStore.getItemAsync("sessionId");
+      const storedUserData = await SecureStore.getItemAsync("userData");
+
       if (storedSessionId) {
         setSessionId(storedSessionId);
-        await fetchCurrentUser(storedSessionId);
+
+        // Load cached user data first (works offline)
+        if (storedUserData) {
+          try {
+            const userData = JSON.parse(storedUserData);
+
+            setUser(userData);
+          } catch (e) {
+            console.warn("Auth: Failed to parse cached user data", e);
+          }
+        }
+
+        // Try to refresh from server if online
+        try {
+          await fetchCurrentUser(storedSessionId);
+        } catch (networkError) {
+          setIsOnline(false);
+        }
       }
     } catch (e) {
-      console.error('Failed to load session', e);
+      console.error("Failed to load session", e);
     } finally {
       setIsLoading(false);
     }
@@ -59,36 +87,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   async function fetchCurrentUser(sid: string) {
     try {
-      const response = await apiClient.get<any>('/auth/me');
+      const response = await apiClient.get<any>("/auth/me");
       if (response.data) {
         // Backend returns { userId, email, fullName, role }
         const { userId, ...rest } = response.data;
-        setUser({ id: userId || rest.id, ...rest });
+        const userData = { id: userId || rest.id, ...rest };
+        setUser(userData);
+
+        // Cache user data for offline use
+        await SecureStore.setItemAsync("userData", JSON.stringify(userData));
+        setIsOnline(true);
       }
     } catch (e: any) {
-      console.error('Failed to fetch user', e);
+      console.error("Failed to fetch user", e);
+      setIsOnline(false);
+
+      // Only logout on explicit auth errors, not network errors
       if (e.response?.status === 401 || e.response?.status === 403) {
         await logout();
       }
+      // Re-throw network errors so loadSession can handle offline mode
+      throw e;
     }
   }
 
   async function login(email: string, password: string) {
-    const response = await apiClient.post<any>('/auth/login', { email, password });
+    const response = await apiClient.post<any>("/auth/login", {
+      email,
+      password,
+    });
     const { user: userData, sessionId: sid } = response.data;
-    
-    await SecureStore.setItemAsync('sessionId', sid);
-    setSessionId(sid);
-    setUser(userData);
+
+    await SecureStore.setItemAsync("sessionId", sid);
+    await SecureStore.setItemAsync("userData", JSON.stringify(userData));
   }
 
   async function register(data: any) {
-    const response = await apiClient.post<any>('/auth/register', data);
-    const { sessionId: sid } = response.data;
-    
-    await SecureStore.setItemAsync('sessionId', sid);
+    const response = await apiClient.post<any>("/auth/register", data);
+    const { user: userData, sessionId: sid } = response.data;
+
+    await SecureStore.setItemAsync("sessionId", sid);
+    await SecureStore.setItemAsync("userData", JSON.stringify(userData));
     setSessionId(sid);
-    await fetchCurrentUser(sid);
+    setUser(userData);
+    setIsOnline(true);
   }
 
   async function refreshUser() {
@@ -98,7 +140,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, sessionId, isLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        sessionId,
+        isLoading,
+        isOnline,
+        login,
+        register,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -107,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
