@@ -1,5 +1,6 @@
 import { TicketQrModal } from '@/components/TicketQrModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getDashboardSessionPriceEt,
@@ -31,6 +32,8 @@ export default function TicketsScreen() {
   const [liveCostBump, setLiveCostBump] = useState(0);
   const [cancelLoading, setCancelLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<{item: Reservation, isRefundable: boolean} | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -70,39 +73,34 @@ export default function TicketsScreen() {
     const diffMins = startTime.isValid() ? dayjs().diff(startTime, 'minute') : 100;
     const isRefundable = diffMins < 15;
 
-    Alert.alert(
-      "Cancel Reservation",
-      isRefundable 
-        ? `If you cancel now, you will receive a full refund of your ETB 7.00 reservation fee automatically to your wallet (15-min grace).`
-        : `The 15-minute grace period has passed. The reservation fee (ETB 7.00) will not be refunded. Proceed?`,
-      [
-        { text: "No, keep it", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: async () => {
-            console.log('[Tickets] Attempting to cancel:', item.id);
-            setCancelLoading(item.id);
-            try {
-              await reservationService.cancelReservation(item);
-              console.log('[Tickets] Cancellation successful');
-              await fetchData();
-              if (isRefundable) {
-                Alert.alert("Success", "Reservation cancelled and refund processed.");
-              } else {
-                Alert.alert("Success", "Reservation cancelled.");
-              }
-            } catch (err: any) {
-              console.error('[Tickets] Cancellation failed:', err);
-              const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Could not cancel reservation.';
-              Alert.alert("Cancellation Failed", errMsg);
-            } finally {
-              setCancelLoading(null);
-            }
-          }
-        }
-      ]
-    );
+    setCancelTarget({ item, isRefundable });
+    setCancelModalVisible(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    const { item, isRefundable } = cancelTarget;
+    setCancelModalVisible(false);
+    
+    console.log('[Tickets] Attempting to cancel:', item.id);
+    setCancelLoading(item.id);
+    try {
+      await reservationService.cancelReservation(item);
+      console.log('[Tickets] Cancellation successful');
+      await fetchData();
+      if (isRefundable) {
+        Alert.alert("Success", "Reservation cancelled and refund processed.");
+      } else {
+        Alert.alert("Success", "Reservation cancelled.");
+      }
+    } catch (err: any) {
+      console.error('[Tickets] Cancellation failed:', err);
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Could not cancel reservation.';
+      Alert.alert("Cancellation Failed", errMsg);
+    } finally {
+      setCancelLoading(null);
+      setCancelTarget(null);
+    }
   };
 
   const safeReservations = Array.isArray(reservations) ? reservations : [];
@@ -439,6 +437,19 @@ export default function TicketsScreen() {
         visible={!!receiptFor} 
         reservation={receiptFor} 
         onClose={() => setReceiptFor(null)} 
+      />
+
+      <ConfirmModal
+        visible={cancelModalVisible}
+        title="Cancel Reservation"
+        message={cancelTarget?.isRefundable 
+          ? "If you cancel now, you will receive a full refund of your ETB 7.00 reservation fee to your wallet (15-min grace)."
+          : "The 15-minute grace period has passed. The ETB 7.00 reservation fee will not be refunded. Proceed?"}
+        confirmText="Yes, Cancel"
+        cancelText="No, keep it"
+        isDestructive={true}
+        onCancel={() => { setCancelModalVisible(false); setCancelTarget(null); }}
+        onConfirm={handleConfirmCancel}
       />
     </View>
   );

@@ -1,5 +1,6 @@
 import { TicketQrModal } from '@/components/TicketQrModal';
-import { AmountLineShimmer } from '@/components/BalancePillShimmer';
+import { DashboardShimmer } from '@/components/DashboardShimmer';
+import Loader from '@/components/Loader';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -396,8 +397,12 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* Welcome */}
-        <View className="mt-2 mb-8">
+        {loading && !refreshing ? (
+          <DashboardShimmer />
+        ) : (
+          <>
+            {/* Welcome */}
+            <View className="mt-2 mb-8">
           <Text className="text-[11px] font-bold uppercase tracking-[2px] text-[#94a3b8] mb-2">WELCOME BACK</Text>
           <Text className={`text-[28px] font-extrabold tracking-tighter ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
             {dayjs().hour() < 12 ? 'Good Morning' : dayjs().hour() < 18 ? 'Good Afternoon' : 'Good Evening'}, {user?.fullName.split(' ')[0] || 'Driver'}
@@ -628,6 +633,8 @@ export default function DashboardScreen() {
             ))}
           </View>
         </View>
+        </>
+        )}
 
       </ScrollView>
       {/* Search Slide-Up Modal */}
@@ -700,7 +707,9 @@ export default function DashboardScreen() {
                   ))}
                 </View>
               ) : searchLoading ? (
-                <ActivityIndicator color={isDark ? '#34d399' : '#064e3b'} style={{ marginTop: 32 }} />
+                <View style={{ marginTop: 32 }}>
+                   <Loader size="md" color={isDark ? "bg-[#34d399]" : "bg-[#064e3b]"} />
+                </View>
               ) : searchResults.length === 0 ? (
                 <Text style={{ textAlign: 'center', color: '#94a3b8', marginTop: 32, fontWeight: '600' }}>No spots found for "{searchQuery}"</Text>
               ) : (
