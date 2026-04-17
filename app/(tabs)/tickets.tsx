@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
 import { AlertCircle, Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
 import Loader from '@/components/Loader';
+import { TicketShimmer } from '@/components/TicketShimmer';
 import React, { useEffect, useState } from 'react';
 import { Alert, Modal, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
@@ -259,10 +260,8 @@ export default function TicketsScreen() {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
-          <View className="mt-10 items-center">
-            <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
-          </View>
+        {(loading || refreshing) ? (
+          <TicketShimmer type={activeTab === 'active' ? 'active' : 'history'} />
         ) : filteredReservations.length === 0 ? (
           <View className="items-center py-20">
             <Text className="text-[#94a3b8] font-medium">No {activeTab} tickets found</Text>

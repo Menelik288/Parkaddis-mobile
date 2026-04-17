@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, useColorScheme, Easing, Dimensions } from 'react-native';
+import { View, Animated, Easing, Dimensions } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -30,7 +31,7 @@ export function DashboardShimmer() {
   }, [translateX]);
 
   const baseColor = isDark ? '#1e293b' : '#f1f5f9';
-  const streakColor = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.35)';
+  const streakColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.35)';
 
   const ShimmerBlock = ({ width, height, borderRadius = 8, style }: any) => {
     return (
@@ -134,7 +135,7 @@ export function DashboardShimmer() {
                 </View>
               </View>
             </View>
-            <View style={{ alignItems: 'end', marginLeft: 16 }}>
+            <View style={{ alignItems: 'flex-end', marginLeft: 16 }}>
               <ShimmerBlock width={80} height={24} borderRadius={6} />
             </View>
           </View>

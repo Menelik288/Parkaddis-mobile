@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TextInput, View, Text, TouchableOpacity, ScrollView, Alert, useColorScheme, Image, Modal, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
 import Loader from '@/components/Loader';
+import { ReserveShimmer } from '@/components/ReserveShimmer';
 
 import { MapPin, Calendar, Clock, Edit2, Car, ArrowRight, Menu, Zap, Trash2, Plus, Minus, LogIn, LogOut, Info, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -227,7 +228,7 @@ export default function ReserveScreen() {
     setBooking(true);
     try {
       const reservation = await reservationService.createReservation({
-        spotId: details.spot.id,
+        spotId: details?.spot?.id,
         vehicleId: selectedVehicle.id,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString()
@@ -245,17 +246,7 @@ export default function ReserveScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center gap-4 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
-        <Loader size="lg" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
-
-        <Text className={`text-base font-semibold ${isDark ? 'text-[#94a3b8]' : 'text-[#475569]'}`}>Fetching spot details...</Text>
-      </View>
-    );
-  }
-
-  if (error || !details) {
+  if (error || (!details && !loading)) {
     return (
       <View className={`flex-1 items-center justify-center gap-4 p-6 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
         <Info size={48} color="#ef4444" />
@@ -268,7 +259,7 @@ export default function ReserveScreen() {
   }
 
   // Price Calculation Math
-  const pricePerHour = parseFloat(details.spot.pricePerHour) || 20;
+  const pricePerHour = parseFloat(details?.spot?.pricePerHour || '20');
   const hrs = durationMins / 60;
   const parkingFee = hrs * pricePerHour;
   const resFee = 5.00;
@@ -548,7 +539,11 @@ export default function ReserveScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 16 }}>
-        {/* Hero Image */}
+        {loading ? (
+          <ReserveShimmer />
+        ) : (
+          <>
+            {/* Hero Image */}
         <View 
           style={{
             shadowColor: '#000',
@@ -575,10 +570,9 @@ export default function ReserveScreen() {
           </View>
         </View>
 
-        {/* Welcome Style Subheader */}
         <View className="mb-8">
           <Text className={`text-[24px] font-extrabold tracking-tighter leading-tight ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`} numberOfLines={1}>
-            {details.location.name}
+            {details?.location?.name || 'Loading Spot...'}
           </Text>
         </View>
 
@@ -785,6 +779,8 @@ export default function ReserveScreen() {
             )}
           </TouchableOpacity>
         </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Unified Sliding Bottom Sheet Overlay */}

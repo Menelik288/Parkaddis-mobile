@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import Loader from '@/components/Loader';
+import { ActivityShimmer } from '@/components/ActivityShimmer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -113,7 +114,7 @@ function WalletBalanceShimmer() {
           }}
         >
           <LinearGradient
-            colors={['transparent', 'rgba(255,255,255,0.55)', 'transparent']}
+            colors={['transparent', 'rgba(255,255,255,0.35)', 'transparent']}
             locations={[0.15, 0.5, 0.85]}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
@@ -380,9 +381,7 @@ export default function WalletScreen() {
 
           <View className="gap-4">
             {loading ? (
-              <View className="my-8 items-center">
-                <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
-              </View>
+              <ActivityShimmer />
             ) : history.length > 0 ? (
               history.map((tx) => (
                 <View 

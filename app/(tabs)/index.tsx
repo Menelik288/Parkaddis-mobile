@@ -1,5 +1,6 @@
 import { TicketQrModal } from '@/components/TicketQrModal';
 import { DashboardShimmer } from '@/components/DashboardShimmer';
+import { ActivityShimmer } from '@/components/ActivityShimmer';
 import Loader from '@/components/Loader';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -395,11 +396,11 @@ export default function DashboardScreen() {
         }}
       >
         {refreshing && (
-          <View className="items-center py-6">
+          <View className="py-6 items-center">
             <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
           </View>
         )}
-        {loading && !refreshing ? (
+        {(loading || refreshing) ? (
           <DashboardShimmer />
         ) : (
           <>
@@ -711,8 +712,8 @@ export default function DashboardScreen() {
                   ))}
                 </View>
               ) : searchLoading ? (
-                <View style={{ marginTop: 32 }}>
-                   <Loader size="md" color={isDark ? "bg-[#34d399]" : "bg-[#064e3b]"} />
+                <View style={{ marginTop: 20, paddingHorizontal: 20 }}>
+                   <ActivityShimmer />
                 </View>
               ) : searchResults.length === 0 ? (
                 <Text style={{ textAlign: 'center', color: '#94a3b8', marginTop: 32, fontWeight: '600' }}>No spots found for "{searchQuery}"</Text>
