@@ -216,6 +216,7 @@ export interface Reservation {
   vehicleId: string;
   startTime: string;
   endTime: string;
+  createdAt?: string;
   status: 'RESERVED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PAID' | 'UNPAID' | 'EXPIRED' | string;
   qrToken?: string;
   qr_token?: string;
@@ -272,8 +273,14 @@ export const reservationService = {
     return response.data;
   },
 
-  cancelReservation: async (reservationId: string) => {
-    const response = await apiClient.post('/reservation/cancel', { reservationId });
+  cancelReservation: async (reservation: Reservation) => {
+    // Some backend versions might expect 'reservationId', 'id', or even 'qrToken'
+    const payload = { 
+      reservationId: reservation.id,
+      id: reservation.id,
+      qrToken: reservation.qrToken
+    };
+    const response = await apiClient.post('/reservation/cancel', payload);
     return response.data;
   },
 

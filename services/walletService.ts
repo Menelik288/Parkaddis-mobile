@@ -111,6 +111,35 @@ export const walletService = {
     }
     return d;
   },
+
+  payReservationFee: async (reservationId: string, amount: number) => {
+    const response = await apiClient.post<{ ok?: boolean; message?: string }>('/wallet/pay/reservation-fee', {
+      reservationId,
+      amount,
+    });
+    const d = response.data as { ok?: boolean; message?: string };
+    if (d?.ok === false) {
+      throw new Error(d.message || 'Fee payment was not accepted');
+    }
+    return d;
+  },
+
+  payWithChapaDirect: async (qrToken: string) => {
+    const response = await apiClient.post<Record<string, unknown>>('/payment/create', { qrToken });
+    const d = response.data as Record<string, unknown>;
+
+    const url = findCheckoutUrl(d);
+    if (url) {
+      return { checkout_url: url, tx_ref: (d.tx_ref || d.txRef || '') as string };
+    }
+
+    const msg =
+      (typeof d.error === 'string' && d.error) ||
+      (typeof d.message === 'string' && d.message !== 'Hosted link' && d.message) ||
+      'No direct payment link returned from server';
+
+    throw new Error(msg);
+  },
 };
 
 export default walletService;

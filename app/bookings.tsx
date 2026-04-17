@@ -148,9 +148,10 @@ export default function BookingsScreen() {
                   elevation: 3,
                 }}
                 className="bg-white px-7 py-3.5 rounded-2xl"
+                onPress={() => router.push('/tickets')}
               >
                 <Text className="text-emerald-900 font-black text-xs">
-                  {isReserved ? 'SPOT INFO' : 'EXTEND'}
+                  {isReserved ? 'SPOT INFO' : 'VIEW TICKET'}
                 </Text>
               </TouchableOpacity>
             </View>

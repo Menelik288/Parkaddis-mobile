@@ -1,9 +1,10 @@
-import { ExtendSessionModal } from '@/components/ExtendSessionModal';
 import { TicketQrModal } from '@/components/TicketQrModal';
+import { ReceiptModal } from '@/components/ReceiptModal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getDashboardSessionPriceEt,
   getReservationDisplayPriceEt,
+  getReservationEntryInstant,
   getReservationLocationLabel,
   Reservation,
   reservationService,
@@ -25,8 +26,8 @@ export default function TicketsScreen() {
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'expired'>('active');
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [extendFor, setExtendFor] = useState<Reservation | null>(null);
   const [ticketFor, setTicketFor] = useState<Reservation | null>(null);
+  const [receiptFor, setReceiptFor] = useState<Reservation | null>(null);
   const [liveCostBump, setLiveCostBump] = useState(0);
   const [cancelLoading, setCancelLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,21 +64,38 @@ export default function TicketsScreen() {
   }, []);
 
   const handleCancel = (item: Reservation) => {
+    const startTime = dayjs(item.startTime);
+    
+    // Calculate minutes elapsed since the reservation's start time
+    const diffMins = startTime.isValid() ? dayjs().diff(startTime, 'minute') : 100;
+    const isRefundable = diffMins < 15;
+
     Alert.alert(
       "Cancel Reservation",
-      "Are you sure you want to cancel this reservation?",
+      isRefundable 
+        ? `If you cancel now, you will receive a full refund of your ETB 7.00 reservation fee automatically to your wallet (15-min grace).`
+        : `The 15-minute grace period has passed. The reservation fee (ETB 7.00) will not be refunded. Proceed?`,
       [
         { text: "No, keep it", style: "cancel" },
         {
           text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
+            console.log('[Tickets] Attempting to cancel:', item.id);
             setCancelLoading(item.id);
             try {
-              await reservationService.cancelReservation(item.id);
-              fetchData();
-            } catch (err) {
-              Alert.alert("Error", "Could not cancel reservation.");
+              await reservationService.cancelReservation(item);
+              console.log('[Tickets] Cancellation successful');
+              await fetchData();
+              if (isRefundable) {
+                Alert.alert("Success", "Reservation cancelled and refund processed.");
+              } else {
+                Alert.alert("Success", "Reservation cancelled.");
+              }
+            } catch (err: any) {
+              console.error('[Tickets] Cancellation failed:', err);
+              const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Could not cancel reservation.';
+              Alert.alert("Cancellation Failed", errMsg);
             } finally {
               setCancelLoading(null);
             }
@@ -89,9 +107,16 @@ export default function TicketsScreen() {
 
   const safeReservations = Array.isArray(reservations) ? reservations : [];
   const filteredReservations = safeReservations.filter(r => {
-    const status = r.status?.toUpperCase();
-    if (activeTab === 'active') return status === 'ACTIVE' || status === 'RESERVED';
-    if (activeTab === 'completed') return status === 'COMPLETED' || status === 'PAID';
+    const status = (r.status || '').toUpperCase();
+    const entry = getReservationEntryInstant(r);
+    const isUpcomingPaid = status === 'PAID' && !entry; // Paid fee but not checked in
+    
+    if (activeTab === 'active') {
+      return status === 'ACTIVE' || status === 'RESERVED' || isUpcomingPaid;
+    }
+    if (activeTab === 'completed') {
+      return (status === 'COMPLETED' || status === 'PAID') && !isUpcomingPaid;
+    }
     return status === 'CANCELLED' || status === 'EXPIRED';
   });
 
@@ -241,26 +266,30 @@ export default function TicketsScreen() {
         ) : (
           <View className="gap-3 mb-10">
             {filteredReservations.map((item) => {
-              const status = item.status?.toUpperCase();
-              const isTicketStyle = status === 'ACTIVE' || status === 'RESERVED';
+              const rawStatus = (item.status || '').toUpperCase();
+              const entry = getReservationEntryInstant(item);
+              const isUpcomingPaid = rawStatus === 'PAID' && !entry;
+              
+              // Force "RESERVED" label for upcoming paid spots
+              const displayStatus = isUpcomingPaid ? 'RESERVED' : rawStatus;
+              const isTicketStyle = displayStatus === 'ACTIVE' || displayStatus === 'RESERVED';
 
               if (isTicketStyle) {
                 const isActive = item.status?.toUpperCase() === 'ACTIVE';
-                const sessionOver = isActive && dayjs().isAfter(dayjs(item.endTime));
-                const showExtend = isActive && !sessionOver;
 
                 return (
-                  <View 
-                    key={item.id} 
-                    style={{
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 10 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 20,
-                      elevation: 8,
-                    }}
-                    className={`rounded-[32px] overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200'}`}
-                  >
+                    <TouchableOpacity 
+                      key={item.id} 
+                      onPress={() => setReceiptFor(item)}
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 20,
+                        elevation: 8,
+                      }}
+                      className={`rounded-[32px] overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-slate-200'}`}
+                    >
                     <View className={`p-6 flex-row justify-between items-start border-b border-dashed relative ${isDark ? 'border-[#334155]' : 'border-slate-200'}`}>
                       <View className={`absolute -left-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
                       <View className={`absolute -right-3 top-1/2 z-10 w-6 h-6 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
@@ -278,7 +307,7 @@ export default function TicketsScreen() {
                         <View className="flex-row gap-8">
                           <View className="gap-0.5">
                             <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">STATUS</Text>
-                            <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{item.status}</Text>
+                            <Text className={`text-sm font-semibold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{displayStatus}</Text>
                           </View>
                           <View className="gap-0.5">
                             <Text className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">DATE</Text>
@@ -319,7 +348,7 @@ export default function TicketsScreen() {
                         </Text>
                       </View>
 
-                      {item.status?.toUpperCase() === 'RESERVED' && (
+                      {(displayStatus === 'RESERVED') && (
                         <TouchableOpacity
                           onPress={() => handleCancel(item)}
                           disabled={cancelLoading === item.id}
@@ -334,27 +363,18 @@ export default function TicketsScreen() {
                           )}
                         </TouchableOpacity>
                       )}
-                      {showExtend && (
-                        <TouchableOpacity
-                          onPress={() => setExtendFor(item)}
-                          className="py-2.5 px-5 rounded-xl shrink-0 bg-white"
-                        >
-                          <Text className="font-extrabold text-[10px] tracking-widest text-[#064e3b]">
-                            EXTEND
-                          </Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               }
 
-                const isCancelled = status === 'CANCELLED' || status === 'EXPIRED';
-                const isPaid = status === 'PAID' || status === 'COMPLETED';
+                const isCancelled = rawStatus === 'CANCELLED' || rawStatus === 'EXPIRED';
+                const isPaid = rawStatus === 'PAID' || rawStatus === 'COMPLETED';
 
                 return (
-                  <View 
+                  <TouchableOpacity 
                     key={item.id}
+                    onPress={() => setReceiptFor(item)}
                     style={{
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
@@ -391,7 +411,7 @@ export default function TicketsScreen() {
                         <View className="flex-row items-center gap-2">
                           <View className={`px-2 py-0.5 rounded-lg ${isCancelled ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : isPaid ? (isDark ? 'bg-emerald-500/10' : 'bg-emerald-50') : (isDark ? 'bg-slate-500/10' : 'bg-slate-50')}`}>
                             <Text className={`text-[8px] font-black tracking-widest uppercase ${isCancelled ? 'text-red-500' : isPaid ? 'text-emerald-500' : 'text-slate-500'}`}>
-                              {status === 'COMPLETED' ? 'PAID' : status}
+                              {rawStatus === 'COMPLETED' ? 'PAID' : rawStatus}
                             </Text>
                           </View>
                           <Text className="text-[9px] font-bold text-[#64748b]">
@@ -401,28 +421,25 @@ export default function TicketsScreen() {
                       </View>
                     </View>
                     <View className="items-end ml-4">
+                      <Text className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>TOTAL</Text>
                       <Text className={`text-lg font-black ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
-                        {getReservationDisplayPriceEt(item)} ETB
+                        ETB {getReservationDisplayPriceEt(item)}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
               );
             })}
           </View>
         )}
       </ScrollView>
 
-      <ExtendSessionModal
-        visible={!!extendFor}
-        reservation={extendFor}
-        isDark={isDark}
-        onClose={() => setExtendFor(null)}
-        onSuccess={updated => {
-          setReservations(prev => prev.map(r => (r.id === updated.id ? { ...r, ...updated } : r)));
-        }}
-      />
-
       <TicketQrModal visible={!!ticketFor} reservation={ticketFor} onClose={() => setTicketFor(null)} />
+
+      <ReceiptModal 
+        visible={!!receiptFor} 
+        reservation={receiptFor} 
+        onClose={() => setReceiptFor(null)} 
+      />
     </View>
   );
 }

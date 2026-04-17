@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { TextInput, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, useColorScheme, Image, Modal, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
-import { MapPin, Calendar, Clock, Edit2, Car, ArrowRight, Menu, Zap, Trash2, Plus, Minus, LogIn, LogOut, Info, X, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react-native';
+import { MapPin, Calendar, Clock, Edit2, Car, ArrowRight, Menu, Zap, Trash2, Plus, Minus, LogIn, LogOut, Info, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { parkingService, LocationDetails } from '@/services/parkingService';
 import { vehicleService, Vehicle } from '@/services/vehicleService';
 import { reservationService } from '@/services/reservationService';
 import { useAuth } from '@/context/AuthContext';
+import { walletService } from '@/services/walletService';
+import { paymentService } from '@/services/paymentService';
 
 export default function ReserveScreen() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function ReserveScreen() {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userWallet, setUserWallet] = useState<{ balance: string } | null>(null);
 
   // Bottom Sheet State
   const [sheetMode, setSheetMode] = useState<'schedule' | 'vehicle' | null>(null);
@@ -175,9 +178,10 @@ export default function ReserveScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [resDetails, resVehicles] = await Promise.all([
+      const [resDetails, resVehicles, resWallet] = await Promise.all([
         parkingService.getLocationDetails(locationId),
-        vehicleService.getUserVehicles()
+        vehicleService.getUserVehicles(),
+        walletService.getWallet()
       ]);
       setDetails(resDetails);
       const vehicleList = Array.isArray(resVehicles) ? resVehicles : [];
@@ -185,6 +189,7 @@ export default function ReserveScreen() {
       if (vehicleList.length > 0) {
         setSelectedVehicle(vehicleList.find(v => v.isPrimary) || vehicleList[0]);
       }
+      setUserWallet(resWallet);
     } catch (err) {
       console.error('Failed to fetch reserve details', err);
       setError('Could not load parking details');
@@ -206,17 +211,33 @@ export default function ReserveScreen() {
       return;
     }
 
+    // Parking Math - USER ONLY PAYS RESERVATION FEE UPFRONT
+    const resFee = 5.00;
+    const srvFee = 2.00;
+    const totalBookingFee = resFee + srvFee;
+    const balance = parseFloat(userWallet?.balance || '0');
+
+    if (balance < totalBookingFee) {
+      Alert.alert('Insufficient Balance', `Your wallet balance is not enough to cover the ETB ${totalBookingFee.toFixed(2)} reservation fee.`);
+      return;
+    }
+
     setBooking(true);
     try {
-      await reservationService.createReservation({
+      const reservation = await reservationService.createReservation({
         spotId: details.spot.id,
         vehicleId: selectedVehicle.id,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString()
       });
-      router.push('/confirmation' as any);
+
+      await walletService.payReservationFee(reservation.id, totalBookingFee);
+      router.push({
+        pathname: '/confirmation',
+        params: { status: 'reserved', id: reservation.id }
+      } as any);
     } catch (err: any) {
-      Alert.alert('Booking Failed', err.response?.data?.message || 'Something went wrong');
+      Alert.alert('Booking Failed', err.response?.data?.message || err.message || 'Something went wrong');
     } finally {
       setBooking(false);
     }
@@ -249,7 +270,7 @@ export default function ReserveScreen() {
   const parkingFee = hrs * pricePerHour;
   const resFee = 5.00;
   const srvFee = 2.00;
-  const totalPaid = parkingFee + resFee + srvFee;
+  const totalBookingFee = resFee + srvFee;
 
   // Derive display constants
   const hDisplay = Math.floor(durationMins / 60);
@@ -684,14 +705,54 @@ export default function ReserveScreen() {
             </View>
             
             <View className={`pt-6 mt-2 border-t-2 border-dashed flex-row justify-between items-center ${isDark ? 'border-[#334155]' : 'border-emerald-100'}`}>
-              <Text className={`font-black text-xs uppercase tracking-[2px] ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>GRAND TOTAL</Text>
-              <Text className={`font-black text-3xl ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>ETB {totalPaid.toFixed(2)}</Text>
+              <View>
+                <Text className={`font-black text-xs uppercase tracking-[2px] ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>DUE NOW</Text>
+                <Text className={`text-[9px] font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>RESERVATION + SERVICE</Text>
+              </View>
+              <Text className={`font-black text-3xl ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>ETB {totalBookingFee.toFixed(2)}</Text>
             </View>
           </View>
           
           {/* Decorative semi-circles for ticket effect */}
           <View className={`absolute top-1/2 -left-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
           <View className={`absolute top-1/2 -right-4 w-8 h-8 rounded-full ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`} />
+        </View>
+
+        <Text className={`text-2xl font-bold tracking-tight mb-6 ${isDark ? 'text-[#f8fafc]' : 'text-[#064e3b]'}`}>Payment Method</Text>
+
+        <View className="mb-10">
+          <View 
+            className={`flex-row items-center justify-between p-6 rounded-[32px] border ${
+              isDark ? 'bg-[#34d399]/10 border-[#34d399]' : 'bg-white border-[#064e3b]'
+            }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <View className="w-12 h-12 rounded-2xl items-center justify-center bg-[#064e3b]">
+                <Wallet size={24} color="white" />
+              </View>
+              <View>
+                <Text className={`font-bold ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>ParkAddis Wallet</Text>
+                <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Balance: ETB {parseFloat(userWallet?.balance || '0').toFixed(2)}
+                </Text>
+              </View>
+            </View>
+            <View className="w-6 h-6 rounded-full border-2 items-center justify-center border-[#34d399] bg-[#34d399]">
+              <View className="w-2 h-2 rounded-full bg-[#0f172a]" />
+            </View>
+          </View>
+
+          {parseFloat(userWallet?.balance || '0') < totalBookingFee && (
+            <View className={`mt-4 p-4 rounded-2xl flex-row items-center gap-3 ${isDark ? 'bg-red-500/10' : 'bg-red-50'}`}>
+              <AlertCircle size={20} color="#ef4444" />
+              <View className="flex-1">
+                <Text className="text-red-500 font-bold text-xs">Insufficient balance for reservation.</Text>
+                <TouchableOpacity onPress={() => router.push('/wallet')}>
+                  <Text className="text-red-500 font-black text-[10px] uppercase tracking-wider mt-1 underline">Top up wallet</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Action Bottom */}
@@ -703,10 +764,11 @@ export default function ReserveScreen() {
               shadowOpacity: 0.2,
               shadowRadius: 20,
               elevation: 10,
+              opacity: (parseFloat(userWallet?.balance || '0') < totalBookingFee) ? 0.5 : 1
             }}
             className={`w-full h-[72px] rounded-[24px] flex-row items-center justify-center gap-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
             onPress={handleConfirm}
-            disabled={booking}
+            disabled={booking || (parseFloat(userWallet?.balance || '0') < totalBookingFee)}
             activeOpacity={0.8}
           >
             {booking ? (

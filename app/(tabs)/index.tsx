@@ -181,34 +181,27 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    if (!activeReservation || activeReservation.status?.toUpperCase() !== 'ACTIVE') return;
+    if (!activeReservation || activeReservation.status?.toUpperCase() !== 'ACTIVE') {
+      setTimeLeft('00:00:00');
+      return;
+    }
 
-    const timer = setInterval(() => {
+    const updateTimer = () => {
       const now = dayjs();
-      // Extract physical check-in time (actualStartTime). Avoid falling back to scheduled startTime!
-      const actualKeys = [
-        'actualStartTime', 'actual_start_time', 'actualStart', 'sessionStartTime', 'enteredAt'
-      ];
-      let physicalEntry: string | undefined;
-      for (const k of actualKeys) {
-        const v = (activeReservation as any)[k];
-        if (typeof v === 'string' && v.length > 0) {
-          physicalEntry = v;
-          break;
-        }
-      }
+      const entry = getReservationEntryInstant(activeReservation);
+      const elapsedMs = entry ? Math.max(0, now.diff(entry)) : 0;
 
-      const elapsedMs = physicalEntry ? Math.max(0, now.diff(dayjs(physicalEntry))) : 0;
-
-      // Calculate timer text (counting up)
       const h = Math.floor(elapsedMs / (1000 * 60 * 60)).toString().padStart(2, '0');
       const m = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
       const s = Math.floor((elapsedMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
       setTimeLeft(`${h}:${m}:${s}`);
-    }, 1000);
+    };
+
+    updateTimer(); // Initial call
+    const timer = setInterval(updateTimer, 1000);
 
     return () => clearInterval(timer);
-  }, [activeReservation]);
+  }, [activeReservation?.id, activeReservation?.status]);
 
   useEffect(() => {
     if (!activeReservation) return;
@@ -309,9 +302,12 @@ export default function DashboardScreen() {
   const totalCount = safeReservations.length;
   const recentHistory = safeReservations.slice(0, 3);
 
+  const entryInstant = activeReservation ? getReservationEntryInstant(activeReservation) : null;
   const sessionStatus = activeReservation?.status?.toUpperCase() ?? '';
-  const isUnpaidCard = sessionStatus === 'UNPAID' || sessionStatus === 'COMPLETED';
-  const isReservedCard = sessionStatus === 'RESERVED';
+  const isUpcomingPaid = sessionStatus === 'PAID' && !entryInstant;
+  
+  const isUnpaidCard = (sessionStatus === 'UNPAID' || sessionStatus === 'COMPLETED') && !isUpcomingPaid;
+  const isReservedCard = sessionStatus === 'RESERVED' || isUpcomingPaid;
   const isActiveCard = sessionStatus === 'ACTIVE';
 
   if (!user) return null;
@@ -401,7 +397,7 @@ export default function DashboardScreen() {
         }
       >
         {/* Welcome */}
-        <View className="mt-2 mb-1">
+        <View className="mt-2 mb-8">
           <Text className="text-[11px] font-bold uppercase tracking-[2px] text-[#94a3b8] mb-2">WELCOME BACK</Text>
           <Text className={`text-[28px] font-extrabold tracking-tighter ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}>
             {dayjs().hour() < 12 ? 'Good Morning' : dayjs().hour() < 18 ? 'Good Afternoon' : 'Good Evening'}, {user?.fullName.split(' ')[0] || 'Driver'}
