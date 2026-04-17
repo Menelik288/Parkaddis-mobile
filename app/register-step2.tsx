@@ -5,6 +5,7 @@ import { Hash, Car, ArrowRight, AlertCircle } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import Loader from '@/components/Loader';
 
 export default function RegisterStep2Screen() {
   const router = useRouter();
@@ -176,8 +177,14 @@ export default function RegisterStep2Screen() {
                   }}
                   className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2"
                 >
-                  <Text className="text-white font-extrabold text-base">{loading ? 'Finalizing...' : 'Complete Registration'}</Text>
-                  {!loading && <ArrowRight size={18} color="white" />}
+                  {loading ? (
+                    <Loader size="sm" color="bg-white" />
+                  ) : (
+                    <>
+                      <Text className="text-white font-extrabold text-base">Complete Registration</Text>
+                      <ArrowRight size={18} color="white" />
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <View className="flex-row justify-center mb-4">

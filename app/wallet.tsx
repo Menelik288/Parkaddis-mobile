@@ -8,16 +8,16 @@ import {
   TextInput,
   Animated,
   Image,
-  ActivityIndicator,
+  Platform,
+  Dimensions,
   TouchableWithoutFeedback,
   Alert,
   Easing,
   StyleSheet,
   RefreshControl,
   KeyboardAvoidingView,
-  Platform,
-  Dimensions,
 } from 'react-native';
+import Loader from '@/components/Loader';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -244,15 +244,18 @@ export default function WalletScreen() {
       <ScrollView 
         className="px-6" 
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={isDark ? CARD_ACCENT : primary}
-            colors={[CARD_ACCENT]}
-          />
-        }
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y < -80 && !refreshing) {
+            onRefresh();
+          }
+        }}
       >
+        {refreshing && (
+          <View className="items-center py-6">
+            <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+          </View>
+        )}
         {/* === WALLET CARD === */}
         <View
           style={{
@@ -377,7 +380,9 @@ export default function WalletScreen() {
 
           <View className="gap-4">
             {loading ? (
-              <ActivityIndicator color={isDark ? CARD_ACCENT : primary} className="my-8" />
+              <View className="my-8 items-center">
+                <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+              </View>
             ) : history.length > 0 ? (
               history.map((tx) => (
                 <View 
@@ -559,7 +564,7 @@ export default function WalletScreen() {
                     }`}
                   >
                     {topUpLoading ? (
-                      <ActivityIndicator color="white" />
+                      <Loader size="sm" color="bg-white" />
                     ) : (
                       <>
                         <Text className="text-base font-black text-white">

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, useColorScheme, Platform, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, useColorScheme, Platform, ScrollView, Dimensions } from 'react-native';
+import Loader from '@/components/Loader';
+
 import { CheckCircle2, QrCode, Calendar, Clock, Share2, ArrowRight, MapPin, X, Car, Wallet, Download } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { 
@@ -50,7 +52,8 @@ export default function ConfirmationScreen() {
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
-        <ActivityIndicator color={isDark ? secondary : primary} />
+        <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+
       </View>
     );
   }

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { TextInput, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, useColorScheme, Image, Modal, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
+import { TextInput, View, Text, TouchableOpacity, ScrollView, Alert, useColorScheme, Image, Modal, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
+import Loader from '@/components/Loader';
+
 import { MapPin, Calendar, Clock, Edit2, Car, ArrowRight, Menu, Zap, Trash2, Plus, Minus, LogIn, LogOut, Info, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { parkingService, LocationDetails } from '@/services/parkingService';
@@ -246,7 +248,8 @@ export default function ReserveScreen() {
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center gap-4 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
-        <ActivityIndicator size="large" color={isDark ? secondary : primary} />
+        <Loader size="lg" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+
         <Text className={`text-base font-semibold ${isDark ? 'text-[#94a3b8]' : 'text-[#475569]'}`}>Fetching spot details...</Text>
       </View>
     );
@@ -772,7 +775,8 @@ export default function ReserveScreen() {
             activeOpacity={0.8}
           >
             {booking ? (
-               <ActivityIndicator color={isDark ? '#0f172a' : 'white'} />
+               <Loader size="sm" color={isDark ? 'bg-[#0f172a]' : 'bg-white'} />
+
             ) : (
                <>
                  <Text className={`font-bold text-xl mr-1 ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Confirm Reservation</Text>

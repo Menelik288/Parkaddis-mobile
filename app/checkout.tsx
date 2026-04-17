@@ -13,7 +13,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { ArrowRight, CreditCard, MapPin, Wallet } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Loader from '@/components/Loader';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CheckoutScreen() {
@@ -161,7 +163,8 @@ export default function CheckoutScreen() {
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
-        <ActivityIndicator color={isDark ? secondary : primary} />
+        <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+
       </View>
     );
   }
@@ -298,7 +301,8 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         </View>
 
-        {payLoading && <ActivityIndicator size="large" color={primary} className="mb-10" />}
+        {payLoading && <View className="items-center mb-10"><Loader size="md" color="bg-[#064e3b]" /></View>}
+
       </ScrollView>
     </SafeAreaView>
   );

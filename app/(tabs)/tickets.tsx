@@ -14,9 +14,10 @@ import { walletService } from '@/services/walletService';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { BalancePillShimmer, BALANCE_PILL_DEFAULT_WIDTH } from '@/components/BalancePillShimmer';
-import { Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
+import { AlertCircle, Bookmark, CheckCircle, History, Menu, QrCode, Settings, Wallet, XCircle } from 'lucide-react-native';
+import Loader from '@/components/Loader';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Modal, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 export default function TicketsScreen() {
   const router = useRouter();
@@ -219,15 +220,18 @@ export default function TicketsScreen() {
         className="flex-1 px-6" 
         contentContainerStyle={{ paddingBottom: 160 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={isDark ? secondary : primary}
-            colors={[secondary]}
-          />
-        }
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y < -80 && !refreshing) {
+            onRefresh();
+          }
+        }}
       >
+        {refreshing && (
+          <View className="items-center py-6">
+            <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+          </View>
+        )}
         {/* Headline */}
         <View className="mb-8 mt-4">
           <Text className={`text-[32px] font-extrabold tracking-tight ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>Your Tickets</Text>
@@ -256,7 +260,9 @@ export default function TicketsScreen() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={isDark ? secondary : primary} className="mt-10" />
+          <View className="mt-10 items-center">
+            <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+          </View>
         ) : filteredReservations.length === 0 ? (
           <View className="items-center py-20">
             <Text className="text-[#94a3b8] font-medium">No {activeTab} tickets found</Text>
@@ -353,7 +359,7 @@ export default function TicketsScreen() {
                           className={`py-2.5 px-5 rounded-xl shrink-0 flex-row items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
                         >
                           {cancelLoading === item.id ? (
-                            <ActivityIndicator size="small" color="#ef4444" />
+                            <Loader size="sm" color="bg-red-400" />
                           ) : (
                             <Text className={`font-extrabold text-[10px] tracking-widest ${isDark ? 'text-red-400' : 'text-red-500'}`}>
                               CANCEL

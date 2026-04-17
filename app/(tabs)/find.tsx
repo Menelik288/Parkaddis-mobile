@@ -25,7 +25,6 @@ import {
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Image,
   Platform,
@@ -36,6 +35,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import Loader from "@/components/Loader";
 
 const NEIGHBORHOODS = [
   { name: "Bole", lat: 8.9958, lng: 38.7891 },
@@ -686,9 +686,9 @@ export default function FindScreen() {
                   elevation: 4,
                 }}
               >
-                <ActivityIndicator
-                  size="small"
-                  color={isDark ? "#34d399" : primary}
+                <Loader
+                  size="sm"
+                  color={isDark ? "bg-[#34d399]" : "bg-[#064e3b]"}
                 />
                 <Text
                   className={`text-[15px] font-semibold ${isDark ? "text-[#f8fafc]" : "text-[#0f172a]"}`}
@@ -996,9 +996,9 @@ export default function FindScreen() {
                       <View
                         style={{ paddingVertical: 20, alignItems: "center" }}
                       >
-                        <ActivityIndicator
-                          size="small"
-                          color={isDark ? "#34d399" : "#064e3b"}
+                        <Loader
+                          size="sm"
+                          color={isDark ? "bg-[#34d399]" : "bg-[#064e3b]"}
                         />
                       </View>
                     ) : searchResults.length > 0 ? (

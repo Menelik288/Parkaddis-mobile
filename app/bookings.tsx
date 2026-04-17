@@ -5,7 +5,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useRouter } from 'expo-router';
 import { History } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import Loader from '@/components/Loader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 dayjs.extend(relativeTime);
@@ -231,7 +232,9 @@ export default function BookingsScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {loading ? (
-          <ActivityIndicator size="large" color={primary} className="mt-10" />
+          <View className="mt-10 items-center">
+            <Loader size="lg" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+          </View>
         ) : (
           <View className="gap-8 mt-4">
             {renderActiveSection()}

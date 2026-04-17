@@ -16,7 +16,6 @@ import dayjs from 'dayjs';
 import { resolveReservationDestination } from '@/lib/reservationDestination';
 import { parkingService } from '@/services/parkingService';
 import {
-  ActivityIndicator,
   View,
   Text,
   TouchableOpacity,
@@ -388,15 +387,18 @@ export default function DashboardScreen() {
       <ScrollView 
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }} 
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={isDark ? secondary : primary}
-            colors={[secondary]}
-          />
-        }
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y < -80 && !refreshing) {
+            onRefresh();
+          }
+        }}
       >
+        {refreshing && (
+          <View className="items-center py-6">
+            <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+          </View>
+        )}
         {loading && !refreshing ? (
           <DashboardShimmer />
         ) : (
@@ -533,7 +535,7 @@ export default function DashboardScreen() {
                   accessibilityLabel="Open directions to parking on map"
                 >
                   {navLoading ? (
-                    <ActivityIndicator size="small" color={isDark ? secondary : primary} />
+                    <Loader size="sm" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
                   ) : (
                     <>
                       <NavigationIcon size={22} color={isDark ? secondary : primary} />
@@ -609,7 +611,9 @@ export default function DashboardScreen() {
 
           <View className="gap-3">
             {loading ? (
-               <ActivityIndicator size="small" color={isDark ? secondary : primary} />
+               <View className="items-center py-4">
+                 <Loader size="md" color={isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'} />
+               </View>
             ) : error ? (
               <View className={`p-6 rounded-3xl items-center gap-3 ${isDark ? 'bg-red-500/10' : 'bg-red-500/05'}`}>
                 <CloudOff size={28} color="#ef4444" />

@@ -5,6 +5,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import Loader from '@/components/Loader';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -136,8 +137,14 @@ export default function LoginScreen() {
                 }}
                 className="w-full h-14 rounded-2xl items-center justify-center flex-row gap-2"
               >
-                <Text className="text-white font-bold text-base">{loading ? 'Signing in...' : 'Sign In'}</Text>
-                {!loading && <ArrowRight size={18} color="white" />}
+                {loading ? (
+                  <Loader size="sm" color="bg-white" />
+                ) : (
+                  <>
+                    <Text className="text-white font-bold text-base">Sign In</Text>
+                    <ArrowRight size={18} color="white" />
+                  </>
+                )}
               </TouchableOpacity>
 
               {/* Divider */}
