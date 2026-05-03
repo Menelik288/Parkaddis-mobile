@@ -905,7 +905,7 @@ export default function FindScreen() {
                           setSelectedLocation(loc);
                           setReservationRouteContext({ title: loc.name, address: loc.address });
                           actions.previewDestination({ lat, lng });
-                          saveToRecentSearches(loc);
+                          saveToRecentSearches({ id: loc.id, name: loc.name, address: loc.address ?? '', lat, lng });
                           reserveSheetRef.current?.present();
                         }
                       }}

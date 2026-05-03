@@ -14,7 +14,7 @@ export type ReservationRouteContext = {
 } | null;
 
 interface MapViewProps {
-  displayedLocations: any[];
+  displayedLocations: any;  // accepts array or GeoJSON FeatureCollection
   onLocationClick: (id: string | null) => void;
   selectedLocation: any | null;
   reservationRouteContext: ReservationRouteContext;
@@ -105,6 +105,12 @@ export function MapView({
     selectedLocation?.properties?.address || reservationRouteContext?.address || '';
 
   const onRegionDidChange = (region: any) => {
+    // Track current center for all navigation modes
+    const center = region.geometry?.coordinates;
+    if (Array.isArray(center) && center.length >= 2) {
+      currentCenterRef.current = { lng: center[0], lat: center[1] };
+    }
+
     const isUser = region.properties?.isUserInteraction;
     if (navigation.status === "IDLE" && isUser) {
       const vb = region.properties?.visibleBounds;
@@ -136,12 +142,6 @@ export function MapView({
           ref={cameraRef}
           centerCoordinate={DEFAULT_CENTER}
           zoomLevel={14.5}
-          onCameraChanged={(camera) => {
-            currentCenterRef.current = {
-              lng: camera.centerCoordinate[0],
-              lat: camera.centerCoordinate[1],
-            };
-          }}
         />
 
         {/* 1. STABLE USER LOCATION SLOT */}
