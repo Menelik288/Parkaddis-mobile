@@ -9,7 +9,8 @@ import { UserLocationMarker } from "../ui/UserLocationMarker";
  */
 export function UserLayer() {
   const { coords, navigation } = useMap();
-  const targetPos = navigation.userCoords || coords;
+  const rawTarget = navigation.userCoords || coords;
+  const targetPos = (rawTarget && rawTarget.lat !== 0 && rawTarget.lng !== 0) ? rawTarget : null;
   
   const [displayPos, setDisplayPos] = useState(targetPos);
   const currentPosRef = useRef(targetPos);

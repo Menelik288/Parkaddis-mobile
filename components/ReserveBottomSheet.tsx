@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetView, BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { TextInput, View, Text, TouchableOpacity, ScrollView, Alert, useColorScheme, Image, Modal, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
+import Reanimated, { interpolate, useAnimatedStyle, Extrapolation } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import Loader from '@/components/Loader';
 import { ReserveShimmer } from '@/components/ReserveShimmer';
 
@@ -12,10 +15,48 @@ import { useAuth } from '@/context/AuthContext';
 import { walletService } from '@/services/walletService';
 import { paymentService } from '@/services/paymentService';
 
-export default function ReserveScreen() {
+// Custom animated blur backdrop for inner sheets
+const BlurBackdrop = ({ animatedIndex, style }: BottomSheetBackdropProps) => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      animatedIndex.value,
+      [-1, 0],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  return (
+    <Reanimated.View
+      style={[
+        style,
+        animatedStyle,
+        { overflow: 'hidden' },
+      ]}
+    >
+      <BlurView
+        intensity={30}
+        tint="dark"
+        style={{ flex: 1 }}
+      />
+    </Reanimated.View>
+  );
+};
+
+export interface ReserveBottomSheetRef {
+  present: () => void;
+  close: () => void;
+}
+
+export const ReserveBottomSheet = forwardRef<ReserveBottomSheetRef, { locationId: string | null; onClose?: () => void }>(({ locationId, onClose }, ref) => {
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+
+  useImperativeHandle(ref, () => ({
+    present: () => bottomSheetRef.current?.present(),
+    close: () => bottomSheetRef.current?.dismiss(),
+  }));
+
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const locationId = params.id as string;
   const { user } = useAuth();
   
   const colorScheme = useColorScheme();
@@ -151,26 +192,20 @@ export default function ReserveScreen() {
     return days;
   };
 
+  const innerSheetRef = useRef<BottomSheetModal>(null);
+
   const openSheet = (mode: 'schedule' | 'vehicle') => {
     setSheetMode(mode);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 60
-    }).start();
+    innerSheetRef.current?.present();
   };
 
   const closeSheet = () => {
-    Animated.timing(slideAnim, {
-      toValue: 800,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setSheetMode(null);
-      // Sync text input with state when closing if we modified it
-      setDurationText(durationMins.toString());
-    });
+    innerSheetRef.current?.dismiss();
+  };
+
+  const handleInnerSheetDismiss = () => {
+    setSheetMode(null);
+    setDurationText(durationMins.toString());
   };
 
   useEffect(() => {
@@ -178,6 +213,7 @@ export default function ReserveScreen() {
   }, [locationId]);
 
   const fetchData = async () => {
+    if (!locationId) return;
     setLoading(true);
     setError(null);
     try {
@@ -314,98 +350,24 @@ export default function ReserveScreen() {
           </ScrollView>
         </View>
 
-        <View className="flex-row gap-4 mb-4">
+        <View className="mb-4">
           <TouchableOpacity 
             onPress={() => {
               setActiveTimeType('entry');
               setShowTimePicker(true);
             }}
-            className={`flex-1 p-5 rounded-3xl overflow-hidden relative border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-slate-50 border-transparent'}`}
+            className={`w-full p-6 rounded-3xl overflow-hidden relative border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-slate-50 border-transparent'}`}
           >
-            <Text className={`text-[10px] font-bold uppercase tracking-wider mb-1 z-10 relative ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ENTRY</Text>
-            <View className="flex-row items-baseline gap-1 z-10 relative">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{formatTime(startTime).split(' ')[0]}</Text>
-              <Text className={`text-xs font-bold ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>{formatTime(startTime).split(' ')[1]}</Text>
+            <Text className={`text-[11px] font-bold uppercase tracking-[2px] mb-2 z-10 relative ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ARRIVAL TIME</Text>
+            <View className="flex-row items-baseline gap-2 z-10 relative">
+              <Text className={`text-4xl font-black ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{formatTime(startTime).split(' ')[0]}</Text>
+              <Text className={`text-sm font-black ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>{formatTime(startTime).split(' ')[1]}</Text>
             </View>
-            <View className="absolute bottom-3 right-3 opacity-20"><Edit2 size={12} color={primary} /></View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={() => {
-              setActiveTimeType('exit');
-              setShowTimePicker(true);
-            }}
-            className={`flex-1 p-5 rounded-3xl overflow-hidden relative border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-slate-50 border-transparent'}`}
-          >
-            <Text className={`text-[10px] font-bold uppercase tracking-wider mb-1 z-10 relative ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>EXIT</Text>
-            <View className="flex-row items-baseline gap-1 z-10 relative">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`}>{formatTime(endTime).split(' ')[0]}</Text>
-              <Text className={`text-xs font-bold ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>{formatTime(endTime).split(' ')[1]}</Text>
-            </View>
-            <View className="absolute bottom-3 right-3 opacity-20"><Edit2 size={12} color={primary} /></View>
+            <View className="absolute bottom-4 right-6 opacity-30"><Edit2 size={20} color={primary} /></View>
           </TouchableOpacity>
         </View>
 
-        <View className="mb-4">
-          <View className="flex-row justify-between items-center mb-4 ml-1">
-            <Text className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">CHOSEN DURATION</Text>
-          </View>
-          <View className={`flex-row items-center justify-between p-4 rounded-2xl border relative ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-slate-50 border-slate-200/50'}`}>
-            <TouchableOpacity 
-              onPress={() => {
-                const newDur = Math.max(15, durationMins - 15);
-                setDurationMins(newDur);
-                setDurationText(newDur.toString());
-              }}
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-              className={`w-12 h-12 rounded-xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
-              activeOpacity={0.7}
-            >
-              <Minus size={20} color={isDark ? '#f8fafc' : '#0f172a'} />
-            </TouchableOpacity>
-            <View className="items-center flex-row gap-2 absolute top-0 bottom-0 left-0 right-0 justify-center">
-              <TextInput 
-                keyboardType="numeric"
-                value={durationText}
-                onChangeText={(text) => {
-                  setDurationText(text);
-                  const parsed = parseInt(text, 10);
-                  if (!isNaN(parsed)) {
-                    setDurationMins(parsed);
-                  }
-                }}
-                className={`text-4xl font-bold ${isDark ? 'text-[#34d399]' : 'text-[#064e3b]'}`}
-                placeholder="30"
-                placeholderTextColor={isDark ? '#334155' : '#cbd5e1'}
-              />
-              <Text className={`text-sm font-bold uppercase tracking-widest mt-1 ${isDark ? 'text-[#64748b]' : 'text-slate-500'}`} pointerEvents="none">MINUTES</Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => {
-                const newDur = durationMins + 15;
-                setDurationMins(newDur);
-                setDurationText(newDur.toString());
-              }}
-              style={{
-                shadowColor: isDark ? '#34d399' : '#064e3b',
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.2,
-                shadowRadius: 15,
-                elevation: 10,
-              }}
-              className={`w-12 h-12 rounded-xl items-center justify-center z-10 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={isDark ? '#0f172a' : '#ffffff'} />
-            </TouchableOpacity>
-          </View>
-        </View>
+
 
         <View className="py-4 relative justify-center">
           <View className={`w-full border-t-[2px] border-dashed ${isDark ? 'border-[#334155]' : 'border-slate-200'}`} />
@@ -521,24 +483,36 @@ export default function ReserveScreen() {
   };
 
   return (
-    <View className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'}`}>
-      {/* Top App Bar - Dashboard Matched */}
-      <View className={`w-full z-10 px-6 ${Platform.OS === 'ios' ? 'pt-[68px]' : 'pt-[48px]'} pb-4 flex-row justify-between items-center ${isDark ? 'bg-[#0f172a]/90' : 'bg-[#f8fafc]/90'}`}>
-        <View className="flex-row items-center gap-5">
-          <TouchableOpacity onPress={() => router.back()} className="p-1">
-            <ChevronLeft size={28} color={isDark ? secondary : primary} />
+    <>
+    <BottomSheetModal
+      ref={bottomSheetRef}
+      index={0}
+      snapPoints={['50%', '92%']}
+      stackBehavior="push"
+      enablePanDownToClose
+      onDismiss={onClose}
+      backgroundStyle={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderTopLeftRadius: 48, borderTopRightRadius: 48 }}
+      handleIndicatorStyle={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
+    >
+      <BottomSheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 16 }}>
+        {/* Header with close button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#f8fafc' : '#0f172a' }}>Reserve Parking</Text>
+          <TouchableOpacity
+            onPress={() => bottomSheetRef.current?.dismiss()}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={18} color={isDark ? '#94a3b8' : '#64748b'} />
           </TouchableOpacity>
-          <View className="flex-row items-center">
-            <Text className="text-2xl font-black tracking-tighter" style={{ color: isDark ? secondary : primary }}>PARK</Text>
-            <Text className="text-2xl font-black tracking-tighter text-[#94a3b8]">ADDIS</Text>
-          </View>
         </View>
-        <TouchableOpacity className={`w-10 h-10 rounded-full border-2 overflow-hidden bg-[#d1fae5] ${isDark ? 'border-[#34d399]' : 'border-[#064e3b]'}`}>
-          <Image className="w-full h-full" source={{uri: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100&h=100&fit=crop'}} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 16 }}>
         {loading ? (
           <ReserveShimmer />
         ) : (
@@ -599,7 +573,7 @@ export default function ReserveScreen() {
               activeOpacity={0.7}
               className="py-8 px-6 flex-col flex-1 relative justify-center"
             >
-              <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ARRIVAL</Text>
+              <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ARRIVAL DATE</Text>
               <View className="flex-row items-center gap-3">
                 <View className={`w-10 h-10 rounded-xl border items-center justify-center ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-slate-50 border-slate-100'}`}>
                   <Calendar size={20} color={isDark ? '#34d399' : '#064e3b'} />
@@ -620,16 +594,15 @@ export default function ReserveScreen() {
               activeOpacity={0.7}
               className="py-8 px-4 flex-col flex-1 relative justify-center"
             >
-              <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>TIME SLOT</Text>
+              <Text className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#64748b]' : 'text-slate-400'}`}>ARRIVAL TIME</Text>
               <View className="flex-row items-center gap-3">
                 <View className={`w-10 h-10 rounded-xl border items-center justify-center ${isDark ? 'bg-[#0f172a] border-[#334155]' : 'bg-slate-50 border-slate-100'}`}>
                   <Clock size={20} color={isDark ? '#34d399' : '#064e3b'} />
                 </View>
                 <View className="flex-1">
-                  <Text className={`font-bold text-[11px] ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} numberOfLines={1} ellipsizeMode="tail">
-                    {formatTime(startTime)} – {formatTime(endTime)}
+                  <Text className={`font-black text-sm ${isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'}`} numberOfLines={1}>
+                    {formatTime(startTime)}
                   </Text>
-                  <Text className={`text-[9px] font-bold uppercase tracking-tight mt-0.5 ${isDark ? 'text-[#94a3b8]' : 'text-slate-500'}`}>{durationMins} MIN DURATION</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -781,40 +754,14 @@ export default function ReserveScreen() {
         </View>
           </>
         )}
-      </ScrollView>
+      </BottomSheetScrollView>
 
-      {/* Unified Sliding Bottom Sheet Overlay */}
-      {sheetMode !== null && (
-        <View className="absolute inset-0 z-[100] justify-end">
-          <TouchableWithoutFeedback onPress={closeSheet}>
-            <View className="absolute inset-0 bg-black/40" />
-          </TouchableWithoutFeedback>
-          <Animated.View 
-            style={{ transform: [{ translateY: slideAnim }] }} 
-            className={`rounded-t-[40px] pt-4 px-6 pb-8 min-h-[65%] relative ${isDark ? 'bg-[#0f172a]' : 'bg-white'}`}
-          >
-             <View className="w-full items-center mb-6">
-                <View className={`w-12 h-1.5 rounded-full ${isDark ? 'bg-[#334155]' : 'bg-slate-200'}`} />
-             </View>
 
-             <TouchableOpacity 
-               onPress={closeSheet} 
-               className={`absolute top-6 right-6 w-10 h-10 items-center justify-center rounded-full z-20 ${isDark ? 'bg-[#1e293b]' : 'bg-slate-100'}`}
-               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-             >
-                <X size={20} color={isDark ? '#94a3b8' : '#64748b'} />
-             </TouchableOpacity>
-             
-             {sheetMode === 'schedule' && renderScheduleEditor()}
-             {sheetMode === 'vehicle' && renderVehicleEditor()}
-          </Animated.View>
-        </View>
-      )}
        {/* EXACT STITCH CIRCULAR WHEEL TIME PICKER POP-UP */}
-       {showTimePicker && activeTimeType && (
-         <View className="absolute inset-0 z-[200] items-center justify-center p-6">
+       <Modal transparent visible={showTimePicker && !!activeTimeType} animationType="fade">
+          <View className="flex-1 items-center justify-center p-6 bg-black/60">
             <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
-              <View className="absolute inset-0 bg-black/60" />
+              <View className="absolute inset-0" />
             </TouchableWithoutFeedback>
             
             <View 
@@ -831,7 +778,7 @@ export default function ReserveScreen() {
                 <Text className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Set {activeTimeType === 'entry' ? 'Arrival' : 'Departure'}</Text>
                 <View className="h-1 w-12 bg-[#34d399] rounded-full mt-2" />
               </View>
-
+ 
               <View className="flex-row justify-center items-center h-[240px] relative">
                 {/* Center Highlight Bar */}
                 <View className="absolute left-0 right-0 h-16 bg-[#34d399]/10 rounded-2xl z-0" />
@@ -847,7 +794,7 @@ export default function ReserveScreen() {
                     onMomentumScrollEnd={(e) => {
                       const y = e.nativeEvent.contentOffset.y;
                       const h = Math.round(y / 64) + 1;
-                      if (h >= 1 && h <= 12) updateTime(activeTimeType, 'hour', h);
+                      if (h >= 1 && h <= 12) updateTime(activeTimeType!, 'hour', h);
                     }}
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => {
@@ -866,7 +813,7 @@ export default function ReserveScreen() {
                     })}
                   </ScrollView>
                 </View>
-
+ 
                 {/* Minute Column */}
                 <View className="flex-1 h-full">
                   <Text className="text-[10px] font-black text-[#94a3b8] uppercase tracking-[2px] mb-2 text-center">MINUTE</Text>
@@ -878,7 +825,7 @@ export default function ReserveScreen() {
                     onMomentumScrollEnd={(e) => {
                       const y = e.nativeEvent.contentOffset.y;
                       const m = Math.round(y / 64);
-                      if (m >= 0 && m <= 59) updateTime(activeTimeType, 'minute', m);
+                      if (m >= 0 && m <= 59) updateTime(activeTimeType!, 'minute', m);
                     }}
                   >
                     {Array.from({ length: 60 }).map((_, m) => {
@@ -897,7 +844,7 @@ export default function ReserveScreen() {
                     })}
                   </ScrollView>
                 </View>
-
+ 
                 {/* AM/PM Column */}
                 <View className="flex-1 h-full">
                   <Text className="text-[10px] font-black text-[#94a3b8] uppercase tracking-[2px] mb-2 text-center">PERIOD</Text>
@@ -909,7 +856,7 @@ export default function ReserveScreen() {
                     onMomentumScrollEnd={(e) => {
                       const y = e.nativeEvent.contentOffset.y;
                       const ampm = Math.round(y / 64) === 0 ? 'AM' : 'PM';
-                      updateTime(activeTimeType, 'ampm', ampm);
+                      updateTime(activeTimeType!, 'ampm', ampm);
                     }}
                   >
                     {['AM', 'PM'].map(ampm => {
@@ -929,7 +876,7 @@ export default function ReserveScreen() {
                   </ScrollView>
                 </View>
               </View>
-
+ 
               <TouchableOpacity 
                 onPress={() => setShowTimePicker(false)}
                 style={{
@@ -944,14 +891,14 @@ export default function ReserveScreen() {
                 <Text className={`text-lg font-black ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Confirm Time</Text>
               </TouchableOpacity>
             </View>
-         </View>
-       )}
+          </View>
+       </Modal>
 
        {/* CUSTOM DATE PICKER POP-UP */}
-       {showDatePicker && (
-         <View className="absolute inset-0 z-[200] items-center justify-center p-6">
+       <Modal transparent visible={showDatePicker} animationType="fade">
+          <View className="flex-1 items-center justify-center p-6 bg-black/60">
             <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-              <View className="absolute inset-0 bg-black/60" />
+              <View className="absolute inset-0" />
             </TouchableWithoutFeedback>
             
              <View 
@@ -975,7 +922,7 @@ export default function ReserveScreen() {
                 <Text className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>
                   {viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </Text>
-
+ 
                 <TouchableOpacity 
                   onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
                   className={`w-12 h-12 rounded-2xl items-center justify-center ${isDark ? 'bg-[#0f172a]' : 'bg-slate-50'}`}
@@ -983,7 +930,7 @@ export default function ReserveScreen() {
                   <ChevronRight size={24} color={isDark ? '#cbd5e1' : '#94a3b8'} />
                 </TouchableOpacity>
               </View>
-
+ 
               <View className="gap-4">
                 {/* Weekday Row */}
                 <View className="flex-row justify-between mb-4 border-b border-slate-50 pb-4">
@@ -991,7 +938,7 @@ export default function ReserveScreen() {
                     <Text key={day} className="flex-1 text-center text-[10px] font-black text-[#cbd5e1] tracking-widest">{day}</Text>
                   ))}
                 </View>
-
+ 
                 {/* Calendar Grid */}
                 <View className="flex-row flex-wrap">
                   {getCalendarDays(viewDate).map((dayObj, i) => {
@@ -1032,7 +979,7 @@ export default function ReserveScreen() {
                     );
                   })}
                 </View>
-
+ 
                 <TouchableOpacity 
                   onPress={() => setShowDatePicker(false)}
                   style={{
@@ -1048,8 +995,49 @@ export default function ReserveScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-         </View>
-       )}
-    </View>
+          </View>
+       </Modal>
+    </BottomSheetModal>
+
+    {/* Unified Sliding Bottom Sheet Overlay */}
+    <BottomSheetModal
+      ref={innerSheetRef}
+      index={0}
+      snapPoints={['75%']}
+      stackBehavior="push"
+      enablePanDownToClose
+      backdropComponent={BlurBackdrop}
+      onDismiss={handleInnerSheetDismiss}
+      backgroundStyle={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderTopLeftRadius: 48, borderTopRightRadius: 48 }}
+      handleIndicatorStyle={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
+    >
+      <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+        {/* Sticky header row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 17, fontWeight: '800', color: isDark ? '#f8fafc' : '#0f172a' }}>
+            {sheetMode === 'schedule' ? 'Your Schedule' : 'Select Vehicle'}
+          </Text>
+          <TouchableOpacity
+            onPress={closeSheet}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
+           {sheetMode === 'schedule' && renderScheduleEditor()}
+           {sheetMode === 'vehicle' && renderVehicleEditor()}
+        </View>
+      </BottomSheetScrollView>
+    </BottomSheetModal>
+    </>
   );
-}
+});

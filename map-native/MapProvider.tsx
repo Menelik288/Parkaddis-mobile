@@ -25,7 +25,7 @@ export type MapRegionSnapshot = {
 
 interface MapContextType {
   coords: Coords | null;
-  locateUser: () => Promise<void>;
+  locateUser: (zoom?: number) => Promise<void>;
   isLoading: boolean;
   navigation: NavigationState;
   actions: NavigationActions;
@@ -92,7 +92,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const locateUser = useCallback(async () => {
+  const locateUser = useCallback(async (customZoom?: number) => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
       console.error("Permission to access location was denied");
@@ -121,7 +121,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
         Math.abs(currentCenter.lat - newCoords.lat) > 0.0001;
 
       if (shouldFly) {
-        scheduleFlyToCoords(newCoords.lng, newCoords.lat);
+        scheduleFlyToCoords(newCoords.lng, newCoords.lat, { zoom: customZoom });
       }
     } catch (err) {
       console.error("Location error:", err);
@@ -130,7 +130,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
         lat: ADDIS_ABABA_CENTER.lat,
       };
       setCoords(defaultCoords);
-      scheduleFlyToCoords(defaultCoords.lng, defaultCoords.lat);
+      scheduleFlyToCoords(defaultCoords.lng, defaultCoords.lat, { zoom: customZoom });
     } finally {
       setIsLoading(false);
     }

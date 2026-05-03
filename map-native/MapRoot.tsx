@@ -21,8 +21,10 @@ const MapRoot = ({ children }: MapRootProps) => {
 
   const onRegionDidChange = useCallback(
     (region: any) => {
-      // Update idle region only when idle
-      if (navigation.status === "IDLE") {
+      const isUser = region.properties?.isUserInteraction;
+      // Update idle region only when idle AND user moved it manually.
+      // This prevents "zoom creep" when system restores camera with padding.
+      if (navigation.status === "IDLE" && isUser) {
         const vb = region.properties?.visibleBounds;
         if (vb && vb.length >= 2) {
           const [ne, sw] = vb;

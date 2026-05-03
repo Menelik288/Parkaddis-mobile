@@ -78,33 +78,27 @@ export function ActiveReservationCard({
   }
 
   return (
-    <View style={[styles.previewCard, { maxWidth: 380, width: '92%', backgroundColor: bg, borderColor, borderWidth }]}>
-      <View style={styles.previewHeaderRow}>
-        <View style={[styles.iconBox, { backgroundColor: iconWrapBg }]}>
-          <Ticket size={22} color={iconColor} strokeWidth={2.2} />
-        </View>
-        <View style={styles.previewHeaderText}>
-          <Text style={[styles.previewTitle, { color: textColor }]} numberOfLines={1}>
-            {title}
-          </Text>
-        </View>
-        {onDismissPreview ? (
-          <TouchableOpacity
-            onPress={onDismissPreview}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={[styles.dismissBtn, { backgroundColor: dismissBg }]}
-            accessibilityLabel="Dismiss"
-          >
-            <X size={20} color={dismissIcon} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <TouchableOpacity style={[styles.navigateBtn, { backgroundColor: navBtnBg }]} onPress={() => onDirectionsClick?.()} activeOpacity={0.88}>
-        <Navigation size={18} color={navBtnText} />
-        <Text style={[styles.navigateBtnText, { color: navBtnText }]}>Navigate</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity 
+      style={{ 
+        width: 56, 
+        height: 56, 
+        borderRadius: 28, 
+        backgroundColor: bg, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 8,
+        borderWidth,
+        borderColor
+      }} 
+      onPress={() => onDirectionsClick?.()} 
+      activeOpacity={0.88}
+    >
+      <Navigation size={24} color={textColor} />
+    </TouchableOpacity>
   );
 }
 

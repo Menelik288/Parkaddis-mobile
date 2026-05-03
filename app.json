@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Parkaddis",
-    "slug": "Parkaddis",
+    "slug": "parkaddis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -74,8 +74,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b9b6b3ae-e123-4a07-adf5-bdddbb95b8bf"
+        "projectId": "727a5d8f-ccc8-4f1a-8482-abea30924bb8"
       }
-    }
+    },
+    "owner": "captnoahjrs-organization"
   }
 }

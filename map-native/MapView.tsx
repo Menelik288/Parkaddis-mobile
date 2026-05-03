@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { X } from 'lucide-react-native';
 import MapRoot from './MapRoot';
 import { useMap } from './MapProvider';
 import { ParkingLayer } from './layers/ParkingLayer';
@@ -33,22 +34,24 @@ export function MapView({
   onDismissReservationRoute,
 }: MapViewProps) {
   const { actions, navigation } = useMap();
+  const isDark = useColorScheme() === 'dark';
 
   useGeolocationWatcher();
   useRouteProgress();
 
   useEffect(() => {
-    if (selectedLocation) {
+    // If we are already navigating or arrived, don't let selection changes clear our path
+    if (navigation.status === 'NAVIGATING' || navigation.status === 'ARRIVED') return;
+
+    if (selectedLocation && reservationRouteContext) {
       actions.previewDestination({
         lng: selectedLocation.geometry.coordinates[0],
         lat: selectedLocation.geometry.coordinates[1],
       });
-    } else {
-      if (!reservationRouteContext) {
-        actions.clearNavigation();
-      }
+    } else if (!selectedLocation && !reservationRouteContext) {
+      actions.clearNavigation();
     }
-  }, [selectedLocation, actions, reservationRouteContext]);
+  }, [selectedLocation, actions, reservationRouteContext, navigation.status]);
 
   const previewTitle =
     selectedLocation?.properties?.name ||
@@ -125,20 +128,33 @@ const styles = StyleSheet.create({
   topLeftOverlay: {
     position: 'absolute',
     top: 68,
-    left: 16,
-    right: 16,
-    zIndex: 100,
+    left: 20,
+    zIndex: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   /** Slightly lower while navigating so the distance bar clears the header chrome. */
   topLeftOverlayNav: {
     position: 'absolute',
     top: 68,
     left: 16,
-    right: 16,
     zIndex: 100,
-    alignItems: 'flex-start',
-    gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  minimalX: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

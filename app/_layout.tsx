@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import '../global.css';
 
 import { BrandedSplash } from '@/components/BrandedSplash';
@@ -43,17 +45,21 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <MapProvider>
-          <RootContent 
-            appIsReady={appIsReady} 
-            showSplash={showSplash} 
-            colorScheme={colorScheme}
-          />
-        </MapProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <MapProvider>
+              <RootContent 
+                appIsReady={appIsReady} 
+                showSplash={showSplash} 
+                colorScheme={colorScheme}
+              />
+            </MapProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -2,12 +2,14 @@ import {
   BALANCE_PILL_DEFAULT_WIDTH,
   BalancePillShimmer,
 } from "@/components/BalancePillShimmer";
+import { ReserveBottomSheet, ReserveBottomSheetRef } from "@/components/ReserveBottomSheet";
 import { useAuth } from "@/context/AuthContext";
 import { getDistance } from "@/lib/navigation-utils";
 import { boundsFromLineString } from "@/map-native/lib/routeBounds";
 import { useMap } from "@/map-native/MapProvider";
 import { MapView, type ReservationRouteContext } from "@/map-native/MapView";
 import { ParkingLocation, parkingService } from "@/services/parkingService";
+import { reservationService, getReservationLocationLabel, type Reservation } from "@/services/reservationService";
 import { walletService } from "@/services/walletService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -37,19 +39,7 @@ import {
 } from "react-native";
 import Loader from "@/components/Loader";
 
-const NEIGHBORHOODS = [
-  { name: "Bole", lat: 8.9958, lng: 38.7891 },
-  { name: "Kazanchis", lat: 9.0205, lng: 38.7656 },
-  { name: "Piazza", lat: 9.0358, lng: 38.7512 },
-  { name: "Piassa", lat: 9.0358, lng: 38.7512 },
-  { name: "4 Kilo", lat: 9.0375, lng: 38.7619 },
-  { name: "Sarbet", lat: 8.995, lng: 38.7369 },
-  { name: "22 Mazoria", lat: 9.0145, lng: 38.7825 },
-  { name: "Megenagna", lat: 9.0182, lng: 38.8021 },
-  { name: "Lebu", lat: 8.9554, lng: 38.7107 },
-  { name: "Jemo", lat: 8.9667, lng: 38.6833 },
-];
-
+// Neighborhoods and Featured Landmarks removed to rely on DB locations
 const RADIUS_ZOOM_MAP: Record<string, number> = {
   Nearby: 17.5,
   "500m": 16.2,
@@ -57,39 +47,6 @@ const RADIUS_ZOOM_MAP: Record<string, number> = {
   "3km": 14.2,
   Popular: 12.5,
 };
-
-const FEATURED_LANDMARKS: ParkingLocation[] = [
-  {
-    id: "l-medhane-alem",
-    name: "Bole Medhane Alem",
-    address: "Bole, Addis Ababa",
-    geom: JSON.stringify([38.7899, 8.9958]),
-  },
-  {
-    id: "l-bora-park",
-    name: "Bora Amusement Park",
-    address: "Off Bole Road",
-    geom: JSON.stringify([38.7956, 8.9906]),
-  },
-  {
-    id: "l-century-mall",
-    name: "Century Mall",
-    address: "Gurd Shola",
-    geom: JSON.stringify([38.8139, 9.0203]),
-  },
-  {
-    id: "l-edna-mall",
-    name: "Edna Mall",
-    address: "Bole, Addis Ababa",
-    geom: JSON.stringify([38.7876, 8.9984]),
-  },
-  {
-    id: "l-kazanchis",
-    name: "Kazanchis Central",
-    address: "Kazanchis Area",
-    geom: JSON.stringify([38.7656, 9.0205]),
-  },
-];
 
 export default function FindScreen() {
   const colorScheme = useColorScheme();
@@ -105,9 +62,15 @@ export default function FindScreen() {
   }>();
   const { user } = useAuth();
   const { actions, navigation, locateUser, cameraRef } = useMap();
+  const reserveSheetRef = React.useRef<ReserveBottomSheetRef>(null);
 
   const [reservationRouteContext, setReservationRouteContext] =
     useState<ReservationRouteContext>(null);
+
+  const navigationStatusRef = React.useRef(navigation.status);
+  useEffect(() => {
+    navigationStatusRef.current = navigation.status;
+  }, [navigation.status]);
 
   const [locations, setLocations] = useState<ParkingLocation[]>([]);
   const [balance, setBalance] = useState<string>("0.00");
@@ -115,6 +78,7 @@ export default function FindScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] =
     useState<ParkingLocation | null>(null);
+  const [activeReservation, setActiveReservation] = useState<Reservation | null>(null);
 
   const [selectedDistance, setSelectedDistance] = useState("Nearby");
   const [showDistanceDropdown, setShowDistanceDropdown] = useState(false);
@@ -202,9 +166,15 @@ export default function FindScreen() {
   const handleDismissReservationRoute = useCallback(() => {
     setSelectedLocation(null);
     setReservationRouteContext(null);
+    setActiveReservation(null);
     actions.clearNavigation();
     clearReservationNavParams();
-  }, [actions, clearReservationNavParams]);
+
+    // Use the unified locateUser logic to reset camera consistently
+    const targetZoom = RADIUS_ZOOM_MAP[selectedDistance] || 15.2;
+    console.log(`[find.tsx] Resetting camera via locateUser. Zoom: ${targetZoom}`);
+    void locateUser(targetZoom);
+  }, [actions, clearReservationNavParams, locateUser, selectedDistance]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +182,12 @@ export default function FindScreen() {
 
     const lat = params.destLat ? parseFloat(String(params.destLat)) : NaN;
     const lng = params.destLng ? parseFloat(String(params.destLng)) : NaN;
+
+    // IMPORTANT: If we are already navigating or arrived, do NOT let URL params
+    // trigger a preview transition.
+    if (navigation.status === "NAVIGATING" || navigation.status === "ARRIVED") {
+      return undefined;
+    }
 
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       const title = params.destName ? String(params.destName) : "Parking";
@@ -263,7 +239,64 @@ export default function FindScreen() {
     params.destName,
     params.locationId,
     actions,
+    navigation.status,
   ]);
+
+  // Handle active/reserved session on mount
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const res = await reservationService.getActiveReservation();
+        if (res && (res.status === "RESERVED" || res.status === "ACTIVE")) {
+          setActiveReservation(res);
+
+          const locName = getReservationLocationLabel(res);
+          const geomStr =
+            res.spot?.location?.geom || res.spot?.geom || res.geom;
+
+          if (geomStr) {
+            try {
+              const parsed = JSON.parse(geomStr);
+              const lng = parsed[0];
+              const lat = parsed[1];
+
+              if (!Number.isFinite(lng) || !Number.isFinite(lat) || lng === 0 || lat === 0) {
+                console.warn("[find.tsx] Skipping active session with invalid coords", { lng, lat });
+                return;
+              }
+
+              const reservedLoc: ParkingLocation = {
+                id: res.spot?.locationId || res.locationId || res.id,
+                name: locName,
+                address: res.spot?.location?.name || res.locationName || "",
+                geom: geomStr,
+              };
+
+              setSelectedLocation(reservedLoc);
+              setReservationRouteContext({ title: locName, address: "" });
+
+              // Small delay to ensure MapView is ready
+              setTimeout(() => {
+                actions.previewDestination({ lat, lng });
+              }, 1000);
+            } catch (e) {
+              console.error("Failed to parse active reservation geom", e);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check active session", err);
+      }
+    };
+    checkActiveSession();
+  }, []);
+
+  // Close reservation sheet when navigation starts to focus on the map
+  useEffect(() => {
+    if (navigation.status === "NAVIGATING") {
+      reserveSheetRef.current?.close?.();
+    }
+  }, [navigation.status]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -281,27 +314,23 @@ export default function FindScreen() {
         walletService.getWallet(),
       ]);
 
-      const apiLocs = Array.isArray(locs) ? locs : [];
-
-      // Calculate distances for featured landmarks and filter them
-      const filteredLandmarks = FEATURED_LANDMARKS.map((land) => {
-        const coords = JSON.parse(land.geom);
-        const dist = getDistance(searchLat, searchLng, coords[1], coords[0]);
-        return { ...land, distance: dist };
-      }).filter((land) => land.distance <= radiusMeters);
-
-      // Combine and deduplicate
-      const combined = [...filteredLandmarks];
-      apiLocs.forEach((loc) => {
-        if (!combined.find((c) => c.id === loc.id)) {
-          combined.push(loc);
+      const apiLocs = (Array.isArray(locs) ? locs : []).filter((l) => {
+        try {
+          const p = JSON.parse(l.geom);
+          return (
+            Array.isArray(p) &&
+            p.length >= 2 &&
+            Number.isFinite(p[0]) &&
+            Number.isFinite(p[1]) &&
+            p[0] !== 0 &&
+            p[1] !== 0
+          );
+        } catch {
+          return false;
         }
       });
 
-      // Sort by distance
-      combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-
-      setLocations(combined);
+      setLocations(apiLocs);
       setBalance(wallet.balance);
 
       // Trigger map animation only if we have real user coordinates
@@ -414,7 +443,40 @@ export default function FindScreen() {
     }, 320);
   };
 
-  const safeLocations = Array.isArray(locations) ? locations : [];
+  const safeLocations = useMemo(() => {
+    const list = Array.isArray(locations) ? locations : [];
+
+    // If navigating or has an active reservation focus, hide all but the destination
+    const isNavigating =
+      navigation.status === "NAVIGATING" || navigation.status === "ARRIVED";
+
+    if (isNavigating || activeReservation) {
+      const targetId =
+        selectedLocation?.id ||
+        activeReservation?.spot?.locationId ||
+        activeReservation?.locationId;
+
+      if (targetId) {
+        return list.filter((l) => l.id === targetId);
+      }
+    }
+    // Final safety filter: remove any locations with invalid or zero coordinates
+    return list.filter((l) => {
+      try {
+        const p = JSON.parse(l.geom);
+        return (
+          Array.isArray(p) &&
+          p.length >= 2 &&
+          Number.isFinite(p[0]) &&
+          Number.isFinite(p[1]) &&
+          p[0] !== 0 &&
+          p[1] !== 0
+        );
+      } catch {
+        return false;
+      }
+    });
+  }, [locations, activeReservation, navigation.status, selectedLocation]);
 
   const geoJsonFeatures = useMemo(() => {
     return safeLocations.map((loc) => {
@@ -450,10 +512,15 @@ export default function FindScreen() {
   const handleMapLocationClick = (id: string | null) => {
     if (!id) {
       setSelectedLocation(null);
+      setReservationRouteContext(null);
       return;
     }
     const loc = safeLocations.find((l) => l.id === id);
-    if (loc) setSelectedLocation(loc);
+    if (loc) {
+      setSelectedLocation(loc);
+      // Clear context when clicking a map pin so it doesn't auto-start navigation route
+      setReservationRouteContext(null);
+    }
   };
 
   return (
@@ -471,7 +538,8 @@ export default function FindScreen() {
 
         {/* Top Navigation Overlay */}
         <View
-          className={`absolute left-6 right-6 z-50 ${Platform.OS === "ios" ? "top-[68px]" : "top-[48px]"}`}
+          className={`absolute left-6 right-6 z-10 ${Platform.OS === "ios" ? "top-[68px]" : "top-[48px]"}`}
+          pointerEvents="box-none"
         >
           <View className="flex-row justify-between items-start">
             {!hideTopControls ? (
@@ -480,12 +548,12 @@ export default function FindScreen() {
                   onPress={() => router.back()}
                   style={{
                     shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 4 },
+                    shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.1,
-                    shadowRadius: 6,
-                    elevation: 5,
+                    shadowRadius: 4,
+                    elevation: 3,
                   }}
-                  className={`w-12 h-12 rounded-full border items-center justify-center ${isDark ? "bg-[#1e293b] border-[#334155]" : "bg-white border-[#f1f5f9]"}`}
+                  className={`w-12 h-12 rounded-full border items-center justify-center ${isDark ? "bg-[#1e293b]/90 border-[#334155]" : "bg-white/90 border-[#f1f5f9]"}`}
                 >
                   <ArrowLeft size={24} color={isDark ? "#34d399" : "#064e3b"} />
                 </TouchableOpacity>
@@ -550,13 +618,11 @@ export default function FindScreen() {
 
         {/* Balanced Controls Row */}
         <View
-          className={`absolute bottom-[225px] left-6 right-6 flex-row items-end z-[60] ${
-            navigation.status === "IDLE" ? "justify-between" : "justify-end"
-          }`}
+          className="absolute bottom-[225px] left-6 right-6 flex-row items-end justify-between z-10"
           style={Platform.OS === "android" ? { elevation: 14 } : undefined}
           pointerEvents="box-none"
         >
-          {navigation.status === "IDLE" && (
+          {navigation.status === "IDLE" ? (
             <View className="relative h-14 justify-end">
               {showDistanceDropdown && (
                 <View
@@ -607,7 +673,7 @@ export default function FindScreen() {
                 <ChevronDown size={16} color="#94a3b8" />
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
 
           <View className="flex-row gap-3" pointerEvents="box-none">
             <TouchableOpacity
@@ -631,7 +697,7 @@ export default function FindScreen() {
                       cameraRef.current.fitBounds(
                         bounds.ne,
                         bounds.sw,
-                        [240, 44, 220, 44],
+                        [120, 44, 480, 44],
                         900,
                       );
                     } catch {
@@ -656,7 +722,8 @@ export default function FindScreen() {
                 } else {
                   setSelectedLocation(null);
                   actions.clearNavigation();
-                  void locateUser();
+                  const targetZoom = RADIUS_ZOOM_MAP[selectedDistance] || 15.2;
+                  void locateUser(targetZoom);
                 }
               }}
               style={{
@@ -760,12 +827,11 @@ export default function FindScreen() {
                     <TouchableOpacity
                       key={loc.id}
                       activeOpacity={0.9}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/reserve",
-                          params: { id: loc.id },
-                        } as any)
-                      }
+                      onPress={() => {
+                        handleMapLocationClick(loc.id);
+                        setReservationRouteContext({ title: loc.name, address: loc.address });
+                        reserveSheetRef.current?.present();
+                      }}
                       className={`flex-row w-[285px] h-24 rounded-[22px] overflow-hidden border ${selectedLocation?.id === loc.id ? "border-[#064e3b] border-2" : "border-[#064e3b]/10"} ${isDark ? "bg-[#111827]" : "bg-white"}`}
                       style={{
                         shadowColor: "#000",
@@ -1064,6 +1130,23 @@ export default function FindScreen() {
             </Animated.View>
           </View>
         )}
+        
+        <View className="absolute inset-0 z-50" pointerEvents="box-none">
+          <ReserveBottomSheet 
+            ref={reserveSheetRef} 
+            locationId={selectedLocation?.id ?? null} 
+            onClose={() => {
+              // Only clear navigation if we are NOT in active navigation mode.
+              // This allows the sheet to auto-close when starting a trip without killing the route.
+              if (
+                navigationStatusRef.current !== "NAVIGATING" &&
+                navigationStatusRef.current !== "ARRIVED"
+              ) {
+                handleDismissReservationRoute();
+              }
+            }}
+          />
+        </View>
       </View>
     </View>
   );

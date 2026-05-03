@@ -4,7 +4,7 @@ import { useMap } from "../MapProvider";
 import { boundsFromLineString } from "../lib/routeBounds";
 
 const PREVIEW_FIT_PADDING: [number, number, number, number] = [
-  240, 44, 220, 44,
+  120, 44, 480, 44,
 ];
 
 export function NavigationCamera() {
@@ -209,6 +209,7 @@ export function NavigationCamera() {
       lastPreviewFitKey.current = null;
       const idle = idleRegionRef.current;
       if (idle && typeof cameraRef.current.fitBounds === "function") {
+        console.log(`[NavigationCamera] Restoring idle region from bounds`);
         executeCameraOperation("restore-idle", () => {
           cameraRef.current?.fitBounds(idle.ne, idle.sw, 48, 700);
           lastTarget.current = null;
@@ -217,6 +218,7 @@ export function NavigationCamera() {
         navigation.userCoords &&
         typeof cameraRef.current.setCamera === "function"
       ) {
+        console.log(`[NavigationCamera] Restoring camera to user location (fallback)`);
         executeCameraOperation("restore-user", () => {
           const { lng, lat } = navigation.userCoords!;
           cameraRef.current?.setCamera({
@@ -241,6 +243,7 @@ export function NavigationCamera() {
         navigation.userCoords &&
         typeof cameraRef.current.setCamera === "function"
       ) {
+        console.log(`[NavigationCamera] Restoring camera from active navigation`);
         executeCameraOperation("restore-navigation", () => {
           const { lng, lat } = navigation.userCoords!;
           cameraRef.current?.setCamera({

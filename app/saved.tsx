@@ -83,7 +83,7 @@ export default function SavedScreen() {
                 }}
                 className={`rounded-[32px] overflow-hidden border ${isDark ? 'bg-[#1e293b] border-[#334155]' : 'bg-white border-[#f1f5f9]'}`}
                 activeOpacity={0.9}
-                onPress={() => router.push({ pathname: '/reserve', params: { id: item.id } } as any)}
+                onPress={() => router.push({ pathname: '/find', params: { locationId: item.id } } as any)}
               >
                 <View className="h-44 w-full relative">
                   <Image source={{ uri: item.image }} className="w-full h-full" resizeMode="cover" />
