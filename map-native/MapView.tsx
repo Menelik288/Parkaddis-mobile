@@ -1,13 +1,9 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { X } from 'lucide-react-native';
-import MapRoot from './MapRoot';
+import MapLibreGL from '@maplibre/maplibre-react-native';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { useMap } from './MapProvider';
-import { ParkingLayer } from './layers/ParkingLayer';
-import { UserLayer } from './layers/UserLayer';
-import { RouteLayer } from './layers/RouteLayer';
-import { NavigationCamera } from './navigation/NavigationCamera';
-import { RouteManager } from './navigation/RouteManager';
+import { ParkingPinMarker } from './ui/ParkingPinMarker';
+import { UserLocationMarker } from './ui/UserLocationMarker';
 import { useGeolocationWatcher } from './hooks/useGeolocationWatcher';
 import { useRouteProgress } from './hooks/useRouteProgress';
 import { ActiveReservationCard } from './ui/ActiveReservationCard';
@@ -20,10 +16,9 @@ export type ReservationRouteContext = {
 interface MapViewProps {
   displayedLocations: any[];
   onLocationClick: (id: string | null) => void;
-  selectedLocation: any;
-  /** When set, clearing pin selection will not wipe a reservation-driven route. */
-  reservationRouteContext?: ReservationRouteContext;
-  onDismissReservationRoute?: () => void;
+  selectedLocation: any | null;
+  reservationRouteContext: ReservationRouteContext;
+  onDismissReservationRoute: () => void;
 }
 
 export function MapView({
@@ -33,25 +28,74 @@ export function MapView({
   reservationRouteContext,
   onDismissReservationRoute,
 }: MapViewProps) {
-  const { actions, navigation } = useMap();
-  const isDark = useColorScheme() === 'dark';
+  const { actions, navigation, cameraRef, mapViewHasLoadedRef, idleRegionRef, currentCenterRef, coords } = useMap();
 
   useGeolocationWatcher();
   useRouteProgress();
 
-  useEffect(() => {
-    // If we are already navigating or arrived, don't let selection changes clear our path
-    if (navigation.status === 'NAVIGATING' || navigation.status === 'ARRIVED') return;
+  // User Layer Logic Flattened
+  const rawTarget = navigation.userCoords || coords;
+  const targetPos = (rawTarget && rawTarget.lat !== 0 && rawTarget.lng !== 0) ? rawTarget : null;
+  const [displayPos, setDisplayPos] = useState(targetPos);
+  const currentPosRef = useRef(targetPos);
+  const userAnimRef = useRef<number | null>(null);
 
-    if (selectedLocation && reservationRouteContext) {
-      actions.previewDestination({
-        lng: selectedLocation.geometry.coordinates[0],
-        lat: selectedLocation.geometry.coordinates[1],
-      });
-    } else if (!selectedLocation && !reservationRouteContext) {
-      actions.clearNavigation();
+  useEffect(() => {
+    if (!targetPos) return;
+    if (!currentPosRef.current) {
+      currentPosRef.current = targetPos;
+      setDisplayPos(targetPos);
+      return;
     }
-  }, [selectedLocation, actions, reservationRouteContext, navigation.status]);
+    const initialPos = { ...currentPosRef.current };
+    const startTime = Date.now();
+    const duration = 1000;
+    const animate = () => {
+      const now = Date.now();
+      let progress = (now - startTime) / duration;
+      if (progress > 1) progress = 1;
+      const newPos = {
+        lat: initialPos.lat + (targetPos.lat - initialPos.lat) * progress,
+        lng: initialPos.lng + (targetPos.lng - initialPos.lng) * progress,
+      };
+      currentPosRef.current = newPos;
+      setDisplayPos(newPos);
+      if (progress < 1) {
+        userAnimRef.current = requestAnimationFrame(animate);
+      }
+    };
+    if (userAnimRef.current) cancelAnimationFrame(userAnimRef.current);
+    userAnimRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (userAnimRef.current) cancelAnimationFrame(userAnimRef.current);
+    };
+  }, [targetPos?.lat, targetPos?.lng]);
+
+  // Route Layer Logic Flattened
+  const routeActive = MapLibreGL && navigation.routeGeometry && navigation.status !== "IDLE";
+
+  const selectedLocationId = selectedLocation?.id || selectedLocation?.properties?.id;
+  
+  const validParkingFeatures = useMemo(() => {
+    const list = Array.isArray(displayedLocations) ? displayedLocations : displayedLocations?.features || [];
+    if (!Array.isArray(list)) return [];
+    
+    return list.filter((feature: any) => {
+      const id = feature?.id ?? feature?.properties?.id;
+      const coords = feature?.geometry?.coordinates;
+      if (!id || !Array.isArray(coords) || coords.length < 2) return false;
+      const [lng, lat] = coords;
+      return Number.isFinite(lng) && Number.isFinite(lat);
+    });
+  }, [displayedLocations]);
+
+  const selectedFeature = useMemo(() => {
+    return validParkingFeatures.find(f => String(f.id) === String(selectedLocationId));
+  }, [validParkingFeatures, selectedLocationId]);
+
+  const showPreviewCard =
+    (navigation.status === 'PREVIEW' || navigation.status === 'NAVIGATING' || navigation.status === 'ARRIVED') &&
+    navigation.destination;
 
   const previewTitle =
     selectedLocation?.properties?.name ||
@@ -60,60 +104,143 @@ export function MapView({
   const previewAddress =
     selectedLocation?.properties?.address || reservationRouteContext?.address || '';
 
-  const selectedLocationId =
-    selectedLocation?.id ?? selectedLocation?.properties?.id ?? null;
+  const onRegionDidChange = (region: any) => {
+    const isUser = region.properties?.isUserInteraction;
+    if (navigation.status === "IDLE" && isUser) {
+      const vb = region.properties?.visibleBounds;
+      if (vb && vb.length >= 2) {
+        const [ne, sw] = vb;
+        idleRegionRef.current = {
+          ne: [ne[0], ne[1]] as [number, number],
+          sw: [sw[0], sw[1]] as [number, number],
+        };
+      }
+    }
+  };
 
-  const showPreviewCard = navigation.status === 'PREVIEW' && navigation.destination;
-
-  const showNavigatingCard =
-    navigation.status === 'NAVIGATING' && navigation.destination;
-
-  const showArrivedCard = navigation.status === 'ARRIVED' && navigation.destination;
+  const DEFAULT_CENTER: [number, number] = [38.75242, 9.03584];
 
   return (
     <View style={styles.container}>
-      <MapRoot>
-        <UserLayer />
-        <ParkingLayer
-          locations={displayedLocations}
-          onLocationClick={onLocationClick}
-          selectedLocationId={selectedLocationId != null ? String(selectedLocationId) : null}
+      <MapLibreGL.MapView
+        style={styles.map}
+        mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        logoEnabled={false}
+        attributionEnabled={false}
+        onRegionDidChange={onRegionDidChange}
+        onDidFinishLoadingMap={() => {
+          mapViewHasLoadedRef.current = true;
+        }}
+      >
+        <MapLibreGL.Camera
+          ref={cameraRef}
+          centerCoordinate={DEFAULT_CENTER}
+          zoomLevel={14.5}
+          onCameraChanged={(camera) => {
+            currentCenterRef.current = {
+              lng: camera.centerCoordinate[0],
+              lat: camera.centerCoordinate[1],
+            };
+          }}
         />
-        <RouteLayer />
-        <RouteManager />
-        <NavigationCamera />
-      </MapRoot>
+
+        {/* 1. STABLE USER LOCATION SLOT */}
+        <MapLibreGL.PointAnnotation
+          id="user-location-slot"
+          coordinate={displayPos && Number.isFinite(displayPos.lng) && Number.isFinite(displayPos.lat) ? [displayPos.lng, displayPos.lat] : [0, 0]}
+          anchor={{ x: 0.5, y: 0.5 }}
+          style={{ opacity: displayPos ? 1 : 0 }}
+        >
+          <View collapsable={false} style={{ overflow: "visible", opacity: displayPos ? 1 : 0 }}>
+            <UserLocationMarker />
+          </View>
+        </MapLibreGL.PointAnnotation>
+
+        {/* 2. STABLE ROUTE LINE SLOT */}
+        <MapLibreGL.ShapeSource
+          id="route-line-source"
+          shape={routeActive ? {
+            type: 'Feature',
+            geometry: navigation.routeGeometry!,
+            properties: {},
+          } : {
+            type: 'FeatureCollection',
+            features: []
+          }}
+        >
+          <MapLibreGL.LineLayer
+            id="route-line-layer"
+            style={{
+              lineColor: '#10B981',
+              lineWidth: 5,
+              lineJoin: 'round',
+              lineCap: 'round',
+              lineOpacity: routeActive ? 0.8 : 0,
+            }}
+          />
+        </MapLibreGL.ShapeSource>
+
+        {/* 3. STABLE BACKGROUND MARKERS SLOT (SymbolLayer for stability) */}
+        <MapLibreGL.ShapeSource
+          id="parking-background-source"
+          shape={{
+            type: 'FeatureCollection',
+            features: validParkingFeatures.filter(f => String(f.id) !== String(selectedLocationId))
+          }}
+          onPress={(e) => {
+            const feature = e.features[0];
+            if (feature) onLocationClick(String(feature.id));
+          }}
+        >
+          <MapLibreGL.CircleLayer
+            id="parking-bg-circles"
+            style={{
+              circleColor: '#064e3b',
+              circleRadius: 18,
+              circleStrokeWidth: 2,
+              circleStrokeColor: '#ffffff',
+              circleOpacity: 0.9,
+            }}
+          />
+          <MapLibreGL.SymbolLayer
+            id="parking-bg-text"
+            style={{
+              textField: 'P',
+              textColor: '#ffffff',
+              textSize: 14,
+              textIgnorePlacement: true,
+              textAllowOverlap: true,
+            }}
+          />
+        </MapLibreGL.ShapeSource>
+
+        {/* 4. STABLE SELECTED MARKER SLOT (Only one PointAnnotation for the active spot) */}
+        <MapLibreGL.PointAnnotation
+          key={selectedLocationId ? `selected-${selectedLocationId}` : 'selected-none'}
+          id="selected-parking-annotation"
+          coordinate={selectedFeature ? selectedFeature.geometry.coordinates : [0, 0]}
+          anchor={{ x: 0.5, y: 1 }}
+          style={{ opacity: selectedFeature ? 1 : 0 }}
+        >
+          <View collapsable={false}>
+            <ParkingPinMarker selected={true} />
+          </View>
+        </MapLibreGL.PointAnnotation>
+
+      </MapLibreGL.MapView>
 
       {showPreviewCard && (
-        <View style={styles.topLeftOverlay} pointerEvents="box-none">
+        <View style={styles.topOverlay} pointerEvents="box-none">
           <ActiveReservationCard
             title={previewTitle}
             address={previewAddress}
-            status="ACTIVE SESSION"
+            status={navigation.status === 'ARRIVED' ? 'ARRIVED' : 'ACTIVE SESSION'}
             distance={navigation.remainingDistance}
             duration={navigation.remainingDuration}
-            mode="preview"
+            mode={navigation.status === 'PREVIEW' ? 'preview' : 'navigating'}
             onDirectionsClick={() => actions.startNavigation()}
             onDismissPreview={onDismissReservationRoute}
-          />
-        </View>
-      )}
-
-      {(showNavigatingCard || showArrivedCard) && (
-        <View style={styles.topLeftOverlayNav} pointerEvents="box-none">
-          <ActiveReservationCard
-            title={previewTitle}
-            address={previewAddress}
-            status={showArrivedCard ? 'ARRIVED' : 'NAVIGATING'}
-            distance={navigation.remainingDistance}
-            duration={navigation.remainingDuration}
-            mode="navigating"
-            onCloseNavigation={() => {
-              actions.clearNavigation();
-              if (onDismissReservationRoute) {
-                onDismissReservationRoute();
-              }
-            }}
+            onCloseNavigation={onDismissReservationRoute}
           />
         </View>
       )}
@@ -125,36 +252,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  topLeftOverlay: {
+  map: {
+    flex: 1,
+  },
+  topOverlay: {
     position: 'absolute',
-    top: 68,
+    top: 80,
     left: 20,
     zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  /** Slightly lower while navigating so the distance bar clears the header chrome. */
-  topLeftOverlayNav: {
-    position: 'absolute',
-    top: 68,
-    left: 16,
-    zIndex: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  minimalX: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'flex-start',
   },
 });

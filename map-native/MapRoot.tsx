@@ -22,8 +22,6 @@ const MapRoot = ({ children }: MapRootProps) => {
   const onRegionDidChange = useCallback(
     (region: any) => {
       const isUser = region.properties?.isUserInteraction;
-      // Update idle region only when idle AND user moved it manually.
-      // This prevents "zoom creep" when system restores camera with padding.
       if (navigation.status === "IDLE" && isUser) {
         const vb = region.properties?.visibleBounds;
         if (vb && vb.length >= 2) {
@@ -45,9 +43,14 @@ const MapRoot = ({ children }: MapRootProps) => {
     };
   }, [mapViewHasLoadedRef]);
 
+  // Robust children filtering for MapLibreGL on iOS.
+  // This ensures no null/undefined/fragment children reach the native MLRNMapView.
+  const validChildren = React.Children.toArray(children).filter(child => {
+    return child != null && React.isValidElement(child);
+  });
+
   return (
     <View style={styles.container}>
-      {/* STABLE Maps - using mapStyle */}
       <MapLibreGL.MapView
         style={styles.map}
         mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
@@ -58,7 +61,6 @@ const MapRoot = ({ children }: MapRootProps) => {
           mapViewHasLoadedRef.current = true;
         }}
       >
-        {/* STABLE Camera */}
         <MapLibreGL.Camera
           ref={cameraRef}
           centerCoordinate={DEFAULT_CENTER}
@@ -71,10 +73,9 @@ const MapRoot = ({ children }: MapRootProps) => {
           }}
         />
 
-        {children}
+        {validChildren}
       </MapLibreGL.MapView>
 
-      {/* Antique / Vintage Tint Overlay (Restored original brownish color) */}
       <View
         pointerEvents="none"
         style={[
@@ -92,24 +93,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  fallbackContainer: {
-    backgroundColor: "#f8fafc",
-    padding: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fallbackTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 8,
-  },
-  fallbackText: {
-    fontSize: 14,
-    color: "#64748b",
-    textAlign: "center",
-    lineHeight: 20,
   },
 });
 

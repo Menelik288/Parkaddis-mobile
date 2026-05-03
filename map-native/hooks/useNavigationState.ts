@@ -48,12 +48,22 @@ export function useNavigationState() {
   }, []);
 
   const previewDestination = useCallback((dest: Coords) => {
-    setNavigation((prev) => ({
-      ...prev,
-      status: "PREVIEW",
-      destination: dest,
-      routeGeometry: null,
-    }));
+    setNavigation((prev) => {
+      // Avoid flickering: if we are already previewing this destination, don't reset routeGeometry
+      if (
+        prev.status === "PREVIEW" &&
+        prev.destination?.lat === dest.lat &&
+        prev.destination?.lng === dest.lng
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        status: "PREVIEW",
+        destination: dest,
+        routeGeometry: null,
+      };
+    });
   }, []);
 
   const clearNavigation = useCallback(() => {

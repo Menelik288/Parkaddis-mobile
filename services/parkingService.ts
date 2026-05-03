@@ -64,6 +64,26 @@ export const parkingService = {
     );
     return response.data;
   },
+
+  searchLocations: async (query: string, lat?: number, lng?: number) => {
+    const params: any = { q: query };
+    if (lat) params.lat = lat;
+    if (lng) params.lng = lng;
+
+    const response = await apiClient.get<any>("/parking/search", { params });
+
+    // Handle GeoJSON FeatureCollection (The search endpoint returns this)
+    const features = response.data?.features || [];
+    return features.map((f: any) => ({
+      id: f.properties.id || f.id,
+      name: f.properties.name,
+      address: f.properties.address,
+      geom: f.geometry?.coordinates
+        ? JSON.stringify(f.geometry.coordinates)
+        : "[]",
+      ...f.properties,
+    }));
+  },
 };
 
 export default parkingService;

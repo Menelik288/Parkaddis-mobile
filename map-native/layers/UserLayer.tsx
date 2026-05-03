@@ -4,9 +4,6 @@ import { View } from "react-native";
 import { useMap } from "../MapProvider";
 import { UserLocationMarker } from "../ui/UserLocationMarker";
 
-/**
- * Custom user location (brand secondary + pulse). Uses merged GPS from navigation context.
- */
 export function UserLayer() {
   const { coords, navigation } = useMap();
   const rawTarget = navigation.userCoords || coords;
@@ -34,7 +31,7 @@ export function UserLayer() {
       let progress = (now - startTime) / duration;
       if (progress > 1) progress = 1;
 
-      const ease = progress; // Linear tracking ensures no jerky overlaps during navigation tracking
+      const ease = progress;
 
       const newPos = {
         lat: initialPos.lat + (targetPos.lat - initialPos.lat) * ease,
@@ -55,17 +52,20 @@ export function UserLayer() {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [targetPos?.lat, targetPos?.lng]); // Update smoothly whenever raw GPS values shift
+  }, [targetPos?.lat, targetPos?.lng]);
 
-  if (!displayPos) return null;
+  // On iOS, direct children of MapView must be valid native components. 
+  // We return a hidden PointAnnotation at [0,0] instead of null to avoid 'object cannot be nil' crashes.
+  const hasPos = displayPos && Number.isFinite(displayPos.lng) && Number.isFinite(displayPos.lat);
 
   return (
     <MapLibreGL.PointAnnotation
       id="user-location"
-      coordinate={[displayPos.lng, displayPos.lat]}
+      coordinate={hasPos ? [displayPos!.lng, displayPos!.lat] : [0, 0]}
       anchor={{ x: 0.5, y: 0.5 }}
+      style={{ opacity: hasPos ? 1 : 0 }}
     >
-      <View collapsable={false} style={{ overflow: "visible" }}>
+      <View collapsable={false} style={{ overflow: "visible", opacity: hasPos ? 1 : 0 }}>
         <UserLocationMarker />
       </View>
     </MapLibreGL.PointAnnotation>

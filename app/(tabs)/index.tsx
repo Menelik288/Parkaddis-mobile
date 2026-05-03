@@ -1,3 +1,4 @@
+import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { TicketQrModal } from '@/components/TicketQrModal';
 import { DashboardShimmer } from '@/components/DashboardShimmer';
 import { ActivityShimmer } from '@/components/ActivityShimmer';
@@ -118,11 +119,8 @@ export default function DashboardScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{id: string; name: string; address: string; lat: number; lng: number}>>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [recentSearches] = useState([
-    { id: 's1', name: 'Bole Medhane Alem', address: 'Bole, Addis Ababa', lat: 8.9958, lng: 38.7899 },
-    { id: 's2', name: 'Edna Mall', address: 'Bole, Addis Ababa', lat: 8.9984, lng: 38.7876 },
-    { id: 's3', name: 'Century Mall', address: 'Gurd Shola', lat: 9.0203, lng: 38.8139 },
-  ]);
+  const { recentSearches, saveSearch: saveToRecentSearches } = useRecentSearches();
+
   const slideAnim = useRef(new Animated.Value(800)).current;
 
   const primary = '#064e3b';
@@ -284,8 +282,10 @@ export default function DashboardScreen() {
     finally { setSearchLoading(false); }
   };
 
-  const navigateToLocation = (loc: { id?: string; name: string; lat: number; lng: number }) => {
+  const navigateToLocation = (loc: { id?: string; name: string; address?: string; lat: number; lng: number }) => {
     closeSearch();
+    // Save to recent searches
+    saveToRecentSearches(loc);
     setTimeout(() => {
       if (loc.id) {
         router.push(`/find?locationId=${loc.id}&destName=${encodeURIComponent(loc.name)}` as any);

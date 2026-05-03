@@ -11,33 +11,42 @@ export function RouteManager() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const shouldFetchRoute = useCallback(() => {
-    if (!navigation.destination || !coords) return false;
-
-    const { lng, lat } = navigation.userCoords || coords;
-    const dest = navigation.destination;
-    const destKey = `${dest.lng},${dest.lat}`;
-
     // Only fetch while previewing or actively navigating
     const shouldFetch =
       (navigation.status === "PREVIEW" || navigation.status === "NAVIGATING") &&
       navigation.destination;
+    
     if (!shouldFetch) return false;
 
-    const originMoved =
-      !lastOrigin.current ||
-      getDistance(lastOrigin.current.lat, lastOrigin.current.lng, lat, lng) >
-        15;
+    // Use userCoords as primary, fallback to initial coords
+    const origin = navigation.userCoords || coords;
+    if (!origin) return false;
+
+    const dest = navigation.destination;
+    const destKey = `${dest.lng},${dest.lat}`;
+
     const destinationChanged = lastDestination.current !== destKey;
     const hasRoute = Boolean(navigation.routeGeometry);
 
-    return !destinationChanged && hasRoute && !originMoved ? false : destKey;
-  }, [coords, navigation]);
+    if (destinationChanged) {
+      return destKey;
+    }
+
+    // Origin movement threshold - 30 meters to avoid jitter
+    const originMoved =
+      !lastOrigin.current ||
+      getDistance(lastOrigin.current.lat, lastOrigin.current.lng, origin.lat, origin.lng) > 30;
+
+    return hasRoute && !originMoved ? false : destKey;
+  }, [coords, navigation.userCoords, navigation.destination, navigation.status, navigation.routeGeometry]);
 
   const fetchRoute = useCallback(
     async (destKey: string) => {
       if (isFetchingRef.current) return;
 
-      const { lng, lat } = navigation.userCoords || coords!;
+      const origin = navigation.userCoords || coords;
+      if (!origin) return;
+      const { lng, lat } = origin;
       const dest = navigation.destination!;
 
       // Cancel any existing request
@@ -98,4 +107,6 @@ export function RouteManager() {
       isFetchingRef.current = false;
     }
   }, [navigation.destination, navigation.routeGeometry, actions]);
+
+  return null;
 }
