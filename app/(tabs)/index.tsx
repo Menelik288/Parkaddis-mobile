@@ -214,34 +214,33 @@ export default function DashboardScreen() {
     return getDashboardSessionPriceEt(activeReservation);
   }, [activeReservation, costMinuteBump]);
 
-  const openFindWithReservationRoute = async () => {
-    if (!activeReservation) return;
-    setNavLoading(true);
+  const openFindWithReservationRoute = () => {
+    if (!activeReservation) {
+      router.push('/find');
+      return;
+    }
+    const geomStr = activeReservation.spot?.location?.geom || activeReservation.spot?.geom || activeReservation.geom;
+    if (!geomStr) {
+      router.push('/find');
+      return;
+    }
     try {
-      const dest = await resolveReservationDestination(activeReservation);
-      const name = getReservationLocationLabel(activeReservation, 'Parking');
-      const locId =
-        activeReservation.spot?.location?.id ||
-        activeReservation.locationId ||
-        activeReservation.spot?.locationId ||
-        activeReservation.spotId;
-
-      if (dest) {
-        router.push(`/find?destLat=${dest.lat}&destLng=${dest.lng}&destName=${encodeURIComponent(name)}` as any);
-        return;
-      }
-
-      if (locId) {
-        router.push(`/find?locationId=${locId}&destName=${encodeURIComponent(name)}` as any);
-        return;
-      }
-
-      Alert.alert(
-        'Location unavailable',
-        'We could not load your parking spot coordinates. Try again after the reservation syncs.'
-      );
-    } finally {
-      setNavLoading(false);
+      const parsed = JSON.parse(geomStr);
+      const lng = parsed[0];
+      const lat = parsed[1];
+      const locName = getReservationLocationLabel(activeReservation);
+      
+      router.push({
+        pathname: '/(tabs)/find',
+        params: {
+          destLat: lat,
+          destLng: lng,
+          destName: locName,
+          locationId: activeReservation.spot?.locationId || activeReservation.locationId || activeReservation.id
+        }
+      });
+    } catch (e) {
+      router.push('/find');
     }
   };
 

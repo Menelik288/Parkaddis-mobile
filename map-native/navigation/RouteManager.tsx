@@ -20,9 +20,12 @@ export function RouteManager() {
 
     // Use userCoords as primary, fallback to initial coords
     const origin = navigation.userCoords || coords;
-    if (!origin) return false;
+    if (!origin) {
+      console.log("[RouteManager] shouldFetchRoute returning false because no origin available", { userCoords: navigation.userCoords, coords });
+      return false;
+    }
 
-    const dest = navigation.destination;
+    const dest = navigation.destination!;
     const destKey = `${dest.lng},${dest.lat}`;
 
     const destinationChanged = lastDestination.current !== destKey;
@@ -58,23 +61,31 @@ export function RouteManager() {
       isFetchingRef.current = true;
 
       try {
+        console.log("[RouteManager] Fetching route from OSRM...", { lng, lat }, { destLng: dest.lng, destLat: dest.lat });
         const response = await fetchOSRMRoute([lng, lat], [dest.lng, dest.lat]);
 
         // Check if request was cancelled
-        if (abortControllerRef.current?.signal.aborted) return;
+        if (abortControllerRef.current?.signal.aborted) {
+          console.log("[RouteManager] Request cancelled");
+          return;
+        }
 
         if (response.code === "Ok" && response.routes.length > 0) {
+          console.log("[RouteManager] Successfully fetched route geometry");
           const route = response.routes[0];
           actions.setRouteGeometry(route.geometry as any);
           actions.updateNavigationMetrics(route.distance, route.duration);
           lastDestination.current = destKey;
           lastOrigin.current = { lng, lat };
+        } else {
+          console.log("[RouteManager] OSRM responded without route or error code", response.code);
         }
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
+          console.log("[RouteManager] Request aborted via catch");
           return;
         }
-        console.error("RouteManager: Fetch failed", error);
+        console.error("[RouteManager] Fetch failed", error);
       } finally {
         isFetchingRef.current = false;
         abortControllerRef.current = null;

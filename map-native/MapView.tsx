@@ -1,6 +1,6 @@
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Linking, Platform, Alert } from 'react-native';
 import { useMap } from './MapProvider';
 import { ParkingPinMarker } from './ui/ParkingPinMarker';
 import { UserLocationMarker } from './ui/UserLocationMarker';
@@ -104,6 +104,30 @@ export function MapView({
   const previewAddress =
     selectedLocation?.properties?.address || reservationRouteContext?.address || '';
 
+  const openNativeMaps = async () => {
+    const dest = navigation.destination;
+    if (!dest) return;
+    const { lat, lng } = dest;
+    const label = encodeURIComponent(
+      reservationRouteContext?.title || selectedLocation?.properties?.name || 'Parking'
+    );
+    // Apple Maps (iOS)
+    const appleUrl = `maps://?daddr=${lat},${lng}&dirflg=d&t=m`;
+    // Google Maps fallback
+    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+    try {
+      const canApple = await Linking.canOpenURL(appleUrl);
+      if (canApple) {
+        await Linking.openURL(appleUrl);
+      } else {
+        await Linking.openURL(googleUrl);
+      }
+    } catch (e) {
+      Alert.alert('Cannot open maps', 'Please install Apple Maps or Google Maps.');
+    }
+  };
+
   const onRegionDidChange = (region: any) => {
     // Track current center for all navigation modes
     const center = region.geometry?.coordinates;
@@ -159,13 +183,13 @@ export function MapView({
         {/* 2. STABLE ROUTE LINE SLOT */}
         <MapLibreGL.ShapeSource
           id="route-line-source"
-          shape={routeActive ? {
-            type: 'Feature',
-            geometry: navigation.routeGeometry!,
-            properties: {},
-          } : {
+          shape={{
             type: 'FeatureCollection',
-            features: []
+            features: routeActive ? [{
+              type: 'Feature',
+              geometry: navigation.routeGeometry!,
+              properties: {},
+            }] : []
           }}
         >
           <MapLibreGL.LineLayer
@@ -238,7 +262,7 @@ export function MapView({
             distance={navigation.remainingDistance}
             duration={navigation.remainingDuration}
             mode={navigation.status === 'PREVIEW' ? 'preview' : 'navigating'}
-            onDirectionsClick={() => actions.startNavigation()}
+            onDirectionsClick={openNativeMaps}
             onDismissPreview={onDismissReservationRoute}
             onCloseNavigation={onDismissReservationRoute}
           />

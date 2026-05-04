@@ -254,8 +254,15 @@ export const reservationService = {
   },
 
   getActiveReservation: async () => {
-    const response = await apiClient.get<Reservation | null>('/reservation/active');
-    return response.data;
+    try {
+      const response = await apiClient.get<any>('/reservation/active');
+      if (response.data) {
+        return response.data.reservedSpot || response.data.activeSession || (typeof response.data === 'object' && response.data.id ? response.data : null);
+      }
+      return null;
+    } catch {
+      return null;
+    }
   },
 
   validateQR: async (qrToken: string) => {

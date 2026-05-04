@@ -213,7 +213,12 @@ export default function ConfirmationScreen() {
             elevation: 10,
           }}
           className={`h-16 rounded-2xl flex-row items-center justify-center gap-2 ${isDark ? 'bg-[#34d399]' : 'bg-[#064e3b]'}`}
-          onPress={() => router.replace('/(tabs)/tickets' as any)}
+          onPress={() => {
+            router.dismissAll();
+            setTimeout(() => {
+              router.push('/(tabs)/tickets' as any);
+            }, 100);
+          }}
           activeOpacity={0.8}
         >
           <Text className={`text-base font-black ${isDark ? 'text-[#0f172a]' : 'text-white'}`}>Done</Text>

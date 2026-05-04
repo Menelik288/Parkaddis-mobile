@@ -15,7 +15,7 @@ import { NavigationCamera } from "@/map-native/navigation/NavigationCamera";
 import { ParkingLocation, parkingService } from "@/services/parkingService";
 import { reservationService, getReservationLocationLabel, type Reservation } from "@/services/reservationService";
 import { walletService } from "@/services/walletService";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import {
   AlertCircle,
   ArrowLeft,
@@ -184,17 +184,13 @@ export default function FindScreen() {
         geom: JSON.stringify([lng, lat]),
       };
       setSelectedLocation(mockLoc);
-      setReservationRouteContext({ title, address: "" });
+      setReservationRouteContext({ title, address: "Selected from search" });
       
-      timeoutId = setTimeout(() => {
-        if (!cancelled) {
-          actions.previewDestination({ lat, lng });
-          reserveSheetRef.current?.present();
-        }
-      }, 150);
+      actions.previewDestination({ lat, lng });
+      reserveSheetRef.current?.present();
+
       return () => {
         cancelled = true;
-        if (timeoutId) clearTimeout(timeoutId);
       };
     }
 
@@ -270,17 +266,32 @@ export default function FindScreen() {
     navigation.status,
   ]);
 
-  // Handle active/reserved session on mount
-  useEffect(() => {
-    const checkActiveSession = async () => {
+  // Handle active/reserved session on mount or focus
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const checkActiveSession = async () => {
       try {
         const res = await reservationService.getActiveReservation();
         if (res && (res.status === "RESERVED" || res.status === "ACTIVE")) {
           setActiveReservation(res);
 
           const locName = getReservationLocationLabel(res);
-          const geomStr =
+          let geomStr =
             res.spot?.location?.geom || res.spot?.geom || res.geom;
+
+          // If geometry wasn't included in the reservation payload, fetch it directly
+          if (!geomStr) {
+            const locId = res.spot?.locationId || res.locationId || res.spot?.id;
+            if (locId) {
+              try {
+                const details = await parkingService.getLocationDetails(locId);
+                geomStr = details?.location?.geom;
+              } catch (e) {
+                console.error("[find.tsx] Failed to fetch missing geometry", e);
+              }
+            }
+          }
 
           if (geomStr) {
             try {
@@ -301,14 +312,20 @@ export default function FindScreen() {
               };
 
               setSelectedLocation(reservedLoc);
-              setReservationRouteContext({ title: locName, address: "" });
+              setReservationRouteContext({ title: locName, address: res.spot?.location?.name || res.locationName || "" });
 
-              // Small delay to ensure MapView is ready
+              console.log("[find.tsx] Triggering previewDestination immediately with coords:", { lat, lng });
+              actions.previewDestination({ lat, lng });
+
+              // Delay the actual navigation mode slightly to allow preview bounds to fit
               setTimeout(() => {
-                actions.previewDestination({ lat, lng });
-              }, 1000);
+                if (isActive) {
+                  console.log("[find.tsx] Triggering startNavigation for active reservation");
+                  actions.startNavigation();
+                }
+              }, 800);
             } catch (e) {
-              console.error("Failed to parse active reservation geom", e);
+              console.error("[find.tsx] Failed to parse active reservation geom", e);
             }
           }
         }
@@ -316,8 +333,12 @@ export default function FindScreen() {
         console.error("Failed to check active session", err);
       }
     };
-    checkActiveSession();
-  }, []);
+    if (isActive) checkActiveSession();
+    
+    return () => {
+      isActive = false;
+    };
+  }, []));
 
   // Close reservation sheet when navigation starts to focus on the map
   useEffect(() => {
@@ -741,7 +762,7 @@ export default function FindScreen() {
             </View>
           ) : null}
 
-          <View className="flex-row gap-3" pointerEvents="box-none">
+          <View className="flex-row gap-3 ml-auto" pointerEvents="box-none">
             <TouchableOpacity
               activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
